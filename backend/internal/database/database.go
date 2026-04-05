@@ -43,6 +43,13 @@ var (
 )
 
 func New() Service {
+	// Check for database type environment variable
+	// Default to PostgreSQL for backward compatibility, but allow SQLite3 if specified
+	dbType := os.Getenv("DB_TYPE")
+	if dbType == "sqlite3" || dbType == "sqlite" {
+		return NewSQLite()
+	}
+
 	// Reuse Connection
 	if dbInstance != nil {
 		return dbInstance
