@@ -13,6 +13,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"tll-backend/internal/database/migrations"
 )
 
 // SQLiteService represents a SQLite3-based database service.
@@ -96,6 +98,18 @@ func NewSQLite() Service {
 	}
 
 	log.Printf("Connected to SQLite database at: %s", dbPath)
+
+	// Run database migrations
+	// Get current working directory to resolve migrations path
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("Warning: failed to get current working directory for migrations: %v", err)
+		cwd = "."
+	}
+
+	if err := migrations.InitMigrations(db, cwd); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
 
 	return sqliteInstance
 }
