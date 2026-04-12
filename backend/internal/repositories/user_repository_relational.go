@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"errors"
 
 	"tll-backend/internal/database"
 	"tll-backend/internal/models"
@@ -12,22 +11,19 @@ import (
 
 // RelationalUserRepository implements UserRepository using GORM for relational database access
 type RelationalUserRepository struct {
-	dbService database.Service
+	*BaseRepository
 }
 
 // NewRelationalUserRepository creates a new relational database user repository
 // Takes a database.Service which provides access to the underlying GORM DB instance
 func NewRelationalUserRepository(dbService database.Service) UserRepository {
-	return &RelationalUserRepository{dbService: dbService}
+	return &RelationalUserRepository{
+		BaseRepository: NewBaseRepository(dbService),
+	}
 }
 
-// getDB is a helper method to get the underlying GORM DB instance
-func (r *RelationalUserRepository) getDB() *gorm.DB {
-	return r.dbService.GetDB()
-}
-
-// Create inserts a new user into the database
-func (r *RelationalUserRepository) Create(ctx context.Context, user *models.User) error {
+// CreateAndSave creates and persists a new user into the database
+func (r *RelationalUserRepository) CreateAndSave(ctx context.Context, user *models.User) error {
 	if err := r.getDB().WithContext(ctx).Create(user).Error; err != nil {
 		// Handle constraint violations
 		if err.Error() == "UNIQUE constraint failed: users.email" {
@@ -44,10 +40,7 @@ func (r *RelationalUserRepository) Create(ctx context.Context, user *models.User
 // GetByID retrieves a user by their unique ID
 func (r *RelationalUserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
 	var user models.User
-	if err := r.getDB().WithContext(ctx).First(&user, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, models.ErrNotFound
-		}
+	if err := r.FindFirst(ctx, &user, "id = ?", id); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -56,10 +49,7 @@ func (r *RelationalUserRepository) GetByID(ctx context.Context, id string) (*mod
 // GetByEmail retrieves a user by their email address
 func (r *RelationalUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	if err := r.getDB().WithContext(ctx).First(&user, "email = ?", email).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, models.ErrNotFound
-		}
+	if err := r.FindFirst(ctx, &user, "email = ?", email); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -68,10 +58,7 @@ func (r *RelationalUserRepository) GetByEmail(ctx context.Context, email string)
 // GetByUsername retrieves a user by their username
 func (r *RelationalUserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
-	if err := r.getDB().WithContext(ctx).First(&user, "username = ?", username).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, models.ErrNotFound
-		}
+	if err := r.FindFirst(ctx, &user, "username = ?", username); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -87,88 +74,37 @@ func (r *RelationalUserRepository) Update(ctx context.Context, user *models.User
 
 // UpdatePassword updates a user's password hash
 func (r *RelationalUserRepository) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
-	result := r.getDB().WithContext(ctx).Model(&models.User{}).
-		Where("id = ?", userID).
-		Update("password_hash", hashedPassword)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return models.ErrNotFound
-	}
-	return nil
+	return r.UpdateField(ctx, &models.User{}, "password_hash", hashedPassword, "id = ?", userID)
 }
 
 // UpdateLastLogin updates the user's last_login_at timestamp to now
 func (r *RelationalUserRepository) UpdateLastLogin(ctx context.Context, userID string) error {
-	result := r.getDB().WithContext(ctx).Model(&models.User{}).
-		Where("id = ?", userID).
-		Update("last_login_at", gorm.Expr("CURRENT_TIMESTAMP"))
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return models.ErrNotFound
-	}
-	return nil
+	return r.UpdateFieldWithExpr(ctx, &models.User{}, "last_login_at", gorm.Expr("CURRENT_TIMESTAMP"), "id = ?", userID)
 }
 
 // Delete performs a soft delete by setting is_active to false
 func (r *RelationalUserRepository) Delete(ctx context.Context, userID string) error {
-	result := r.getDB().WithContext(ctx).Model(&models.User{}).
-		Where("id = ?", userID).
-		Update("is_active", false)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return models.ErrNotFound
-	}
-	return nil
+	return r.UpdateField(ctx, &models.User{}, "is_active", false, "id = ?", userID)
 }
 
 // HardDelete permanently removes a user record from the database
 func (r *RelationalUserRepository) HardDelete(ctx context.Context, userID string) error {
-	result := r.getDB().WithContext(ctx).Where("id = ?", userID).Delete(&models.User{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return models.ErrNotFound
-	}
-	return nil
+	return r.BaseRepository.HardDelete(ctx, &models.User{}, "id = ?", userID)
 }
 
 // Restore reactivates a soft-deleted user (sets is_active to true)
 func (r *RelationalUserRepository) Restore(ctx context.Context, userID string) error {
-	result := r.getDB().WithContext(ctx).Model(&models.User{}).
-		Where("id = ?", userID).
-		Update("is_active", true)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return models.ErrNotFound
-	}
-	return nil
+	return r.UpdateField(ctx, &models.User{}, "is_active", true, "id = ?", userID)
 }
 
 // ExistsByEmail checks if a user with the given email exists
 func (r *RelationalUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	var count int64
-	if err := r.getDB().WithContext(ctx).Model(&models.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	return r.Exists(ctx, &models.User{}, "email = ?", email)
 }
 
 // ExistsByUsername checks if a user with the given username exists
 func (r *RelationalUserRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-	var count int64
-	if err := r.getDB().WithContext(ctx).Model(&models.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	return r.Exists(ctx, &models.User{}, "username = ?", username)
 }
 
 // GetActiveUsers retrieves all active users with pagination

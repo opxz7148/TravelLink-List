@@ -9,9 +9,9 @@ import (
 // All methods follow the repository pattern: data access abstraction layer
 // This allows implementation switching (e.g., SQLite to PostgreSQL) without affecting services
 type UserRepository interface {
-	// Create inserts a new user into the database
+	// CreateAndSave inserts a new user into the database and persists it
 	// Returns error if email or username already exists (unique constraint violation)
-	Create(ctx context.Context, user *models.User) error
+	CreateAndSave(ctx context.Context, user *models.User) error
 
 	// GetByID retrieves a user by their unique ID
 	// Returns models.ErrNotFound if user doesn't exist

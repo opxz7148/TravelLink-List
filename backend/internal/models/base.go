@@ -26,6 +26,12 @@ var (
 
 	// ErrValidation is returned when a model fails validation
 	ErrValidation = errors.New("validation failed")
+
+	// ErrInvalidCredentials is returned when login credentials are incorrect
+	ErrInvalidCredentials = errors.New("invalid credentials")
+
+	// ErrUserInactive is returned when trying to login with an inactive user account
+	ErrUserInactive = errors.New("user account is inactive")
 )
 
 // BaseModel contains common fields for all models

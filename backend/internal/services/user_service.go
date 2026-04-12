@@ -171,7 +171,7 @@ func (s *RelationalUserService) Register(ctx context.Context, email, username, p
 		IsActive:     true,
 	}
 
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.userRepo.CreateAndSave(ctx, user); err != nil {
 		return nil, nil, err
 	}
 
