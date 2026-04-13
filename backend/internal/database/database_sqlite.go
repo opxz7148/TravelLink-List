@@ -111,6 +111,11 @@ func NewSQLite() Service {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 
+	// Seed database with sample data if empty
+	if err := SeedDatabase(db); err != nil {
+		log.Printf("Warning: Failed to seed database: %v", err)
+	}
+
 	return sqliteInstance
 }
 

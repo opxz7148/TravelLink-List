@@ -1,0 +1,1607 @@
+basePath: /api/v1
+definitions:
+  controllers.ChangePasswordRequest:
+    properties:
+      new_password:
+        minLength: 8
+        type: string
+      old_password:
+        minLength: 1
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  controllers.CreateAttractionRequest:
+    properties:
+      category:
+        type: string
+      contact_info:
+        maxLength: 200
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      estimated_visit_duration_minutes:
+        type: integer
+      hours_of_operation:
+        maxLength: 200
+        type: string
+      location:
+        maxLength: 300
+        minLength: 1
+        type: string
+      name:
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - category
+    - location
+    - name
+    type: object
+  controllers.CreateCommentRequest:
+    properties:
+      text:
+        maxLength: 1000
+        minLength: 1
+        type: string
+    required:
+    - text
+    type: object
+  controllers.CreatePlanRequest:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      destination:
+        maxLength: 200
+        minLength: 1
+        type: string
+      title:
+        maxLength: 150
+        minLength: 1
+        type: string
+    required:
+    - destination
+    - title
+    type: object
+  controllers.CreateTransitionRequest:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      hours_of_operation:
+        maxLength: 200
+        type: string
+      mode:
+        type: string
+      route_notes:
+        maxLength: 500
+        type: string
+      title:
+        maxLength: 200
+        type: string
+    required:
+    - mode
+    - title
+    type: object
+  controllers.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  controllers.PromotionRequestResponse:
+    properties:
+      admin_notes:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      plan_id:
+        type: string
+      reviewed_at:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: string
+    type: object
+  controllers.RegisterRequest:
+    properties:
+      display_name:
+        maxLength: 100
+        type: string
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  controllers.SubmitPromotionRequest:
+    properties:
+      plan_id:
+        description: 'Optional: if provided, request is for plan promotion; if null,
+          request is for user role upgrade'
+        type: string
+    type: object
+  controllers.SubmitRatingRequest:
+    properties:
+      stars:
+        maximum: 5
+        minimum: 1
+        type: integer
+    required:
+    - stars
+    type: object
+  controllers.UpdateCommentRequest:
+    properties:
+      text:
+        maxLength: 1000
+        minLength: 1
+        type: string
+    required:
+    - text
+    type: object
+  controllers.UpdatePlanNodesRequest:
+    properties:
+      node_id:
+        type: string
+      operation:
+        enum:
+        - add
+        - reorder
+        - remove
+        type: string
+      position:
+        description: Only used for add/reorder
+        minimum: 0
+        type: integer
+    required:
+    - node_id
+    - operation
+    type: object
+  controllers.UpdateProfileRequest:
+    properties:
+      bio:
+        maxLength: 500
+        type: string
+      display_name:
+        maxLength: 100
+        type: string
+    type: object
+  controllers.UserProfileResponse:
+    properties:
+      bio:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      role:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  middleware.ErrorInfo:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  middleware.ResponseEnvelope:
+    properties:
+      api_version:
+        type: string
+      data: {}
+      error:
+        $ref: '#/definitions/middleware.ErrorInfo'
+      success:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  middleware.SwaggerErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/middleware.ErrorInfo'
+      success:
+        example: false
+        type: boolean
+    type: object
+host: localhost:8000
+info:
+  contact:
+    email: support@travellink.local
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Travel Linked List API - Browse, create, and share travel plans
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: TravelLink API
+  version: "1.0"
+paths:
+  /admin/promotions/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Admin can approve a promotion request. If no plan is specified,
+        user role is upgraded to traveller. (admin only)
+      parameters:
+      - description: Promotion Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Admin notes (max 500 chars)
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion request approved
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Promotion request not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Approve a promotion request
+      tags:
+      - admin
+  /admin/promotions/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Admin can reject a promotion request with optional notes. (admin
+        only)
+      parameters:
+      - description: Promotion Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Admin notes (max 500 chars)
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion request rejected
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Promotion request not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Reject a promotion request
+      tags:
+      - admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with email and password to receive JWT access token
+      parameters:
+      - description: Login request with email and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully authenticated
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+        "401":
+          description: Invalid credentials or inactive user
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+      summary: Authenticate user and get access token
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Logout authenticated user. In a stateless JWT system, the client
+        should discard the token.
+      responses:
+        "204":
+          description: User successfully logged out
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+      security:
+      - Bearer: []
+      summary: Logout user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with email, username, password, and display
+        name
+      parameters:
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User successfully registered
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.ResponseEnvelope'
+      summary: Register a new user
+      tags:
+      - auth
+  /comments/{commentId}:
+    delete:
+      description: Delete a comment (author or admin only). Soft-deleted, admin can
+        permanently delete.
+      parameters:
+      - description: Comment ID
+        in: path
+        name: commentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Comment deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Comment not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete a comment
+      tags:
+      - comments
+    put:
+      consumes:
+      - application/json
+      description: Update a comment (author or admin only). Can only update within
+        30 days of creation.
+      parameters:
+      - description: Comment ID
+        in: path
+        name: commentId
+        required: true
+        type: string
+      - description: Comment update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Comment updated successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Permission denied or comment too old
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Comment not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Update a comment
+      tags:
+      - comments
+  /nodes:
+    get:
+      description: Get paginated list of approved nodes (attractions and/or transitions).
+        Can filter by type. (public endpoint)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Results per page
+        in: query
+        name: limit
+        type: integer
+      - description: Node type filter
+        enum:
+        - attraction
+        - transition
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Nodes list with pagination
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: List available nodes
+      tags:
+      - nodes
+  /nodes/{id}:
+    delete:
+      description: Admin can delete a node (admin only)
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Node deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete a node
+      tags:
+      - admin
+    get:
+      description: Retrieve detailed information about a node (attraction or transition).
+        Details include full information for the specific node type. (public endpoint)
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Node details
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Get node details
+      tags:
+      - nodes
+  /nodes/{id}/approve:
+    patch:
+      description: Admin can approve a user-created node for inclusion in travel plans
+        (admin only)
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Node approved successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Approve a user-created node
+      tags:
+      - admin
+  /nodes/{id}/disapprove:
+    patch:
+      description: Admin can disapprove a node, removing it from travel plans (admin
+        only)
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Node disapproved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Disapprove a node
+      tags:
+      - admin
+  /nodes/attraction:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user-generated attraction node. Requires admin approval
+        before public use. Traveller or admin only.
+      parameters:
+      - description: Attraction creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateAttractionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Attraction node created (pending approval)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Only traveller or admin can create nodes
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create an attraction node
+      tags:
+      - nodes
+  /nodes/transition:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Create a new user-generated transition node (journey between attractions). Requires admin approval before public use. Traveller or admin only.
+        Transition nodes represent movement between attractions with modes like walking, car, bus, train, bike, taxi, or flight.
+        Fields: title (service/line identifier like "Bus Line 5"), mode (transportation type), hours (operating hours if applicable), description, route_notes, distance
+      parameters:
+      - description: Transition creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateTransitionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Transition node created (pending approval)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Only traveller or admin can create nodes
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create a transition node
+      tags:
+      - nodes
+  /plans:
+    get:
+      description: Get paginated list of published travel plans with ratings and comments
+        (public endpoint)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Results per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of published plans with pagination
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Browse published travel plans
+      tags:
+      - plans
+    post:
+      consumes:
+      - application/json
+      description: Create a draft travel plan. User must be traveller or admin. Plan
+        starts in draft status.
+      parameters:
+      - description: Plan creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreatePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Plan created with ID and details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Only traveller or admin can create plans
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      tags:
+      - plans
+  /plans/{id}:
+    delete:
+      description: Admin can soft-delete a travel plan (admin only)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete a travel plan
+      tags:
+      - admin
+    get:
+      description: Retrieve detailed information about a published travel plan including
+        nodes (public endpoint)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan details with nodes
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      tags:
+      - plans
+  /plans/{id}/comments:
+    get:
+      description: Retrieve paginated comments for a travel plan (public endpoint)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      - default: 50
+        description: Limit for pagination
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Comments list with pagination metadata
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Get comments for a travel plan
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      description: Add a comment to a travel plan. Authenticated users can comment.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Comment creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Comment created with ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create a comment on a travel plan
+      tags:
+      - comments
+  /plans/{id}/my-rating:
+    get:
+      description: Retrieve your current rating for a travel plan. Returns null if
+        not rated.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Your rating or null
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get your rating for a travel plan
+      tags:
+      - ratings
+  /plans/{id}/nodes:
+    patch:
+      consumes:
+      - application/json
+      description: Add, reorder, or remove nodes from a travel plan. Can only be done
+        by plan author or admin.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Node operation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdatePlanNodesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Operation completed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or operation
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Only plan author or admin can modify plan
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan or node not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Update plan nodes (add/reorder/remove)
+      tags:
+      - plans
+  /plans/{id}/publish:
+    patch:
+      description: Change plan status from draft to published. Plan author or admin
+        only.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan published successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Only plan author or admin can publish
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Publish a travel plan
+      tags:
+      - plans
+  /plans/{id}/ratings:
+    get:
+      description: Retrieve aggregate rating statistics for a travel plan (public
+        endpoint)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rating statistics (average, count, sum)
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Get rating statistics for a travel plan
+      tags:
+      - ratings
+    post:
+      consumes:
+      - application/json
+      description: Rate a travel plan with 1-5 stars (upsert operation). Authenticated
+        users can rate.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Rating submission request (stars: 1-5)'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SubmitRatingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Rating submitted with ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Submit a rating for a travel plan
+      tags:
+      - ratings
+    put:
+      consumes:
+      - application/json
+      description: Update your rating for a travel plan (1-5 stars). Authenticated
+        users can update their rating.
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Rating update request (stars: 1-5)'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SubmitRatingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rating updated with ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Update a travel plan rating
+      tags:
+      - ratings
+  /plans/{id}/suspend:
+    patch:
+      description: Admin can suspend a travel plan (admin only)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan suspended successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Suspend a travel plan
+      tags:
+      - admin
+  /plans/search:
+    get:
+      description: Search published plans by title, description, or destination (public
+        endpoint)
+      parameters:
+      - description: Search query (required)
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Results per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results with pagination
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing search query
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Search published travel plans
+      tags:
+      - plans
+  /promotions/my-requests:
+    get:
+      description: Get all promotion requests submitted by the current user.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Results per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of promotion requests
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: List my promotion requests
+      tags:
+      - promotions
+  /promotions/request:
+    post:
+      consumes:
+      - application/json
+      description: Submit a request to upgrade to traveller role or for plan promotion.
+        Simple users can submit requests.
+      parameters:
+      - description: Promotion request submission
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SubmitPromotionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Request submitted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found or user not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Submit a promotion request
+      tags:
+      - promotions
+  /promotions/request/{id}:
+    get:
+      description: Get the status of a specific promotion request.
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Promotion request details
+          schema:
+            $ref: '#/definitions/controllers.PromotionRequestResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Request not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get promotion request status
+      tags:
+      - promotions
+  /users/{id}:
+    get:
+      description: Retrieve user profile information (public endpoint)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/controllers.UserProfileResponse'
+            type: object
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      summary: Get user profile by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update user profile information (display_name, bio). Only user
+        or admin can update.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Profile update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated with user and message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Update user profile
+      tags:
+      - users
+  /users/{id}/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Change password for authenticated user. Users can only change their
+        own password.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Password change request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password changed successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Validation error (invalid old password or weak new password)
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Can only change own password
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Change user password
+      tags:
+      - users
+  /users/{id}/deactivate:
+    patch:
+      description: Admin can soft-delete (deactivate) a user account. Admin cannot
+        deactivate self. (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deactivated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Cannot deactivate own account
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Deactivate user account
+      tags:
+      - admin
+  /users/{id}/role:
+    patch:
+      consumes:
+      - application/json
+      description: Admin can change a user's role (simple/traveller/admin). Admin
+        cannot change admin's own role. (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Role change request (role: simple|traveller|admin)'
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User role updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid role or cannot change own role
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Cannot change own role
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Change user role
+      tags:
+      - admin
+securityDefinitions:
+  Bearer:
+    description: 'Enter JWT token in the format: Bearer eyJhbGci...'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

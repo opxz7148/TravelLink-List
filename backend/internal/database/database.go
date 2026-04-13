@@ -88,6 +88,12 @@ func New() Service {
 	dbInstance = &service{
 		db: db,
 	}
+
+	// Seed database with sample data if empty
+	if err := SeedDatabase(db); err != nil {
+		log.Printf("Warning: Failed to seed database: %v", err)
+	}
+
 	return dbInstance
 }
 

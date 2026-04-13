@@ -42,15 +42,15 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
     -- Last login: nullable UTC timestamp, tracks successful authentication
-    last_login_at TIMESTAMP,
-
-    -- Indexes for query optimization
-    UNIQUE INDEX idx_users_email ON email,
-    UNIQUE INDEX idx_users_username ON username,
-    INDEX idx_users_role ON role,
-    INDEX idx_users_is_active ON is_active,
-    INDEX idx_users_last_login_at ON last_login_at
+    last_login_at TIMESTAMP
 );
+
+-- Create indexes for query optimization (SQLite3 requires separate CREATE INDEX statements)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_last_login_at ON users(last_login_at);
 
 -- Create trigger to auto-update updated_at timestamp on row modification
 CREATE TRIGGER IF NOT EXISTS users_updated_at_trigger

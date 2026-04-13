@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -14,15 +15,15 @@ import (
 
 // CommentController handles comment operations
 type CommentController struct {
-	planService services.PlanService
-	// CommentService will be added when implemented
-	// commentService services.CommentService
+	planService    services.PlanService
+	commentService services.CommentService
 }
 
 // NewCommentController creates a new comment controller
-func NewCommentController(planService services.PlanService) *CommentController {
+func NewCommentController(planService services.PlanService, commentService services.CommentService) *CommentController {
 	return &CommentController{
-		planService: planService,
+		planService:    planService,
+		commentService: commentService,
 	}
 }
 
@@ -38,16 +39,30 @@ type UpdateCommentRequest struct {
 
 // CommentResponse represents comment data in API response
 type CommentResponse struct {
-	ID               string `json:"id"`
-	PlanID           string `json:"plan_id"`
-	AuthorID         string `json:"author_id"`
-	Text             string `json:"text"`
-	IsDeletedByAdmin bool   `json:"is_deleted_by_admin"`
-	CreatedAt        string `json:"created_at"`
+	ID               string  `json:"id"`
+	PlanID           string  `json:"plan_id"`
+	AuthorID         string  `json:"author_id"`
+	Text             string  `json:"text"`
+	IsDeletedByAdmin bool    `json:"is_deleted_by_admin"`
+	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        *string `json:"updated_at,omitempty"`
 }
 
 // CreateComment handles POST /api/v1/plans/:id/comments - create comment
+// @Summary Create a comment on a travel plan
+// @Description Add a comment to a travel plan. Authenticated users can comment.
+// @Tags comments
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id path string true "Plan ID"
+// @Param request body CreateCommentRequest true "Comment creation request"
+// @Success 201 {object} map[string]interface{} "Comment created with ID"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Plan not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/{id}/comments [post]
 func (cc *CommentController) CreateComment(c *gin.Context) {
 	planID := c.Param("id")
 	var req CreateCommentRequest
@@ -85,15 +100,31 @@ func (cc *CommentController) CreateComment(c *gin.Context) {
 		return
 	}
 
-	// TODO: When CommentService is implemented, call it here
-	// commentID, err := cc.commentService.CreateComment(c.Request.Context(), comment)
+	// Create comment via service
+	commentID, err := cc.commentService.CreateComment(c.Request.Context(), planID, userID, req.Text)
+	if err != nil {
+		middleware.InternalErrorResponse(c, "Failed to create comment")
+		return
+	}
 
 	middleware.SuccessResponse(c, http.StatusCreated, gin.H{
-		"message": "Comment created successfully (service not yet implemented)",
+		"id":      commentID,
+		"message": "Comment created successfully",
 	})
 }
 
 // GetComments handles GET /api/v1/plans/:id/comments - list comments
+// @Summary Get comments for a travel plan
+// @Description Retrieve paginated comments for a travel plan (public endpoint)
+// @Tags comments
+// @Produce json
+// @Param id path string true "Plan ID"
+// @Param offset query int false "Offset for pagination" default(0)
+// @Param limit query int false "Limit for pagination" default(50)
+// @Success 200 {object} map[string]interface{} "Comments list with pagination metadata"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Plan not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/{id}/comments [get]
 func (cc *CommentController) GetComments(c *gin.Context) {
 	planID := c.Param("id")
 
@@ -104,16 +135,64 @@ func (cc *CommentController) GetComments(c *gin.Context) {
 		return
 	}
 
-	// TODO: When CommentService is implemented, fetch comments here
-	// comments, err := cc.commentService.GetCommentsByPlan(c.Request.Context(), planID)
+	// Get pagination parameters
+	offset := 0
+	limit := 50
+	if o := c.Query("offset"); o != "" {
+		_, _ = fmt.Sscanf(o, "%d", &offset)
+	}
+	if l := c.Query("limit"); l != "" {
+		_, _ = fmt.Sscanf(l, "%d", &limit)
+	}
+
+	// Fetch comments via service
+	comments, total, err := cc.commentService.ListCommentsByPlan(c.Request.Context(), planID, offset, limit)
+	if err != nil {
+		middleware.InternalErrorResponse(c, "Failed to fetch comments")
+		return
+	}
+
+	// Convert to response format
+	commentResponses := make([]CommentResponse, len(comments))
+	for i, comment := range comments {
+		commentResponses[i] = CommentResponse{
+			ID:               comment.ID,
+			PlanID:           comment.PlanID,
+			AuthorID:         comment.AuthorID,
+			Text:             comment.Text,
+			IsDeletedByAdmin: comment.IsDeletedByAdmin,
+			CreatedAt:        comment.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+		if comment.UpdatedAt != nil {
+			updatedAt := comment.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
+			commentResponses[i].UpdatedAt = &updatedAt
+		}
+	}
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
-		"comments": []CommentResponse{},
-		"message": "Comments feature not yet implemented",
+		"comments": commentResponses,
+		"total":    total,
+		"offset":   offset,
+		"limit":    limit,
 	})
 }
 
 // UpdateComment handles PUT /api/v1/comments/:commentId - update comment
+// @Summary Update a comment
+// @Description Update a comment (author or admin only). Can only update within 30 days of creation.
+// @Tags comments
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param commentId path string true "Comment ID"
+// @Param request body UpdateCommentRequest true "Comment update request"
+// @Success 200 {object} map[string]string "Comment updated successfully"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Permission denied or comment too old"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Comment not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /comments/{commentId} [put]
 func (cc *CommentController) UpdateComment(c *gin.Context) {
 	commentID := c.Param("commentId")
 	var req UpdateCommentRequest
@@ -131,24 +210,46 @@ func (cc *CommentController) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	// TODO: When CommentService is implemented
-	// Verify ownership
-	// comment, _ := cc.commentService.GetCommentByID(c.Request.Context(), commentID)
-	// if comment.AuthorID != userID {
-	//     middleware.ForbiddenErrorResponse(c, "You do not have permission to update this comment")
-	//     return
-	// }
-	// err := cc.commentService.UpdateComment(c.Request.Context(), commentID, req.Text)
+	userRole, _ := utilities.GetUserRoleFromContext(c)
 
-	_ = userID // Suppress unused warning
-	_ = commentID
+	// Get comment to verify ownership
+	comment, err := cc.commentService.GetCommentByID(c.Request.Context(), commentID)
+	if err != nil || comment == nil {
+		middleware.NotFoundErrorResponse(c, "Comment not found")
+		return
+	}
+
+	// Convert userRole string to models.UserRole
+	role := models.UserRole(userRole)
+
+	// Update comment via service (authorization handled in service)
+	if err := cc.commentService.UpdateComment(c.Request.Context(), commentID, userID, role, strings.TrimSpace(req.Text)); err != nil {
+		if err == models.ErrUnauthorized {
+			middleware.ForbiddenErrorResponse(c, "You do not have permission to update this comment")
+			return
+		}
+		middleware.InternalErrorResponse(c, "Failed to update comment")
+		return
+	}
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
-		"message": "Update comment feature not yet implemented",
+		"message": "Comment updated successfully",
 	})
 }
 
 // DeleteComment handles DELETE /api/v1/comments/:commentId - delete comment
+// @Summary Delete a comment
+// @Description Delete a comment (author or admin only). Soft-deleted, admin can permanently delete.
+// @Tags comments
+// @Security Bearer
+// @Produce json
+// @Param commentId path string true "Comment ID"
+// @Success 200 {object} map[string]string "Comment deleted successfully"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Permission denied"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Comment not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /comments/{commentId} [delete]
 func (cc *CommentController) DeleteComment(c *gin.Context) {
 	commentID := c.Param("commentId")
 
@@ -159,19 +260,22 @@ func (cc *CommentController) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	// TODO: When CommentService is implemented
-	// Verify ownership or admin
-	// comment, _ := cc.commentService.GetCommentByID(c.Request.Context(), commentID)
-	// if comment.AuthorID != userID {
-	//     middleware.ForbiddenErrorResponse(c, "You do not have permission to delete this comment")
-	//     return
-	// }
-	// err := cc.commentService.DeleteComment(c.Request.Context(), commentID)
+	userRole, _ := utilities.GetUserRoleFromContext(c)
 
-	_ = userID // Suppress unused warning
-	_ = commentID
+	// Convert userRole string to models.UserRole
+	role := models.UserRole(userRole)
+
+	// Delete comment via service (authorization handled in service)
+	if err := cc.commentService.DeleteComment(c.Request.Context(), commentID, userID, role); err != nil {
+		if err == models.ErrUnauthorized {
+			middleware.ForbiddenErrorResponse(c, "You do not have permission to delete this comment")
+			return
+		}
+		middleware.InternalErrorResponse(c, "Failed to delete comment")
+		return
+	}
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
-		"message": "Delete comment feature not yet implemented",
+		"message": "Comment deleted successfully",
 	})
 }

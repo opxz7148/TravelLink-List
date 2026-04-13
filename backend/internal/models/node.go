@@ -97,10 +97,6 @@ type AttractionNodeDetail struct {
 	// Operating hours (e.g., "09:00-18:00" or "Mon-Sun: 09:00-18:00")
 	HoursOfOperation string `gorm:"type:TEXT;size:200" json:"hours_of_operation"`
 
-	// estimated_visit_duration_minutes (integer, optional)
-	// How long typical visit takes in minutes (e.g., 60, 120)
-	EstimatedVisitDurationMinutes *int `gorm:"type:INTEGER" json:"estimated_visit_duration_minutes"`
-
 	// created_at (timestamp, UTC, immutable)
 	CreatedAt time.Time `gorm:"autoCreateTime:milli" json:"created_at"`
 
@@ -162,21 +158,28 @@ type TransitionNodeDetail struct {
 	// References the parent node
 	NodeID string `gorm:"primaryKey;type:TEXT;foreignKey:NodeID;references:nodes(id);constraint:OnDelete:CASCADE,OnUpdate:CASCADE;<-:create" json:"node_id"`
 
+	// title (string, max 200 chars, required)
+	// Service/line identifier (e.g., "Bus Line 5", "M1 Train", "Walking")
+	// Immutable identifier for the transition service
+	Title string `gorm:"type:TEXT;not null;size:200" json:"title"`
+
 	// mode (enum: walking, car, bus, train, bike, taxi, flight, other)
 	// How the traveler moves between attractions
 	Mode string `gorm:"type:TEXT;not null;size:50" json:"mode"`
 
-	// estimated_duration_minutes (integer, required, > 0)
-	// How long the transition takes in minutes
-	EstimatedDurationMinutes int `gorm:"type:INTEGER;not null" json:"estimated_duration_minutes"`
+	// description (string, max 1000 chars, optional)
+	// General description of the transition journey, independent of plan
+	Description string `gorm:"type:TEXT;size:1000" json:"description"`
+
+	// hours_of_operation (string, max 200 chars, optional)
+	// Operating hours/availability of this service
+	// e.g., "Mon-Fri 6:00-23:00, Sat-Sun 7:00-22:00"
+	// NULL for modes without fixed hours (walking, driving)
+	HoursOfOperation *string `gorm:"type:TEXT;size:200" json:"hours_of_operation"`
 
 	// route_notes (string, max 500 chars, optional)
 	// Additional directions or notes for the journey
 	RouteNotes string `gorm:"type:TEXT;size:500" json:"route_notes"`
-
-	// estimated_distance_km (decimal, optional)
-	// Distance covered in kilometers
-	EstimatedDistanceKm *float64 `gorm:"type:REAL" json:"estimated_distance_km"`
 
 	// created_at (timestamp, UTC, immutable)
 	CreatedAt time.Time `gorm:"autoCreateTime:milli" json:"created_at"`
@@ -246,21 +249,13 @@ func (a *AttractionNodeDetail) Validate() bool {
 	if len(a.Description) > 1000 || len(a.ContactInfo) > 200 || len(a.HoursOfOperation) > 200 {
 		return false
 	}
-	if a.EstimatedVisitDurationMinutes != nil && *a.EstimatedVisitDurationMinutes <= 0 {
-		return false
-	}
 	return true
 }
 
 // ValidateTransitionNodeDetail validates transition node details
 func (t *TransitionNodeDetail) Validate() bool {
-	if t.EstimatedDurationMinutes <= 0 {
-		return false
-	}
+
 	if len(t.RouteNotes) > 500 {
-		return false
-	}
-	if t.EstimatedDistanceKm != nil && *t.EstimatedDistanceKm < 0 {
 		return false
 	}
 	return true

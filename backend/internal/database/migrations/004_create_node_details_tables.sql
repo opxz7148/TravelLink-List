@@ -27,9 +27,6 @@ CREATE TABLE IF NOT EXISTS attraction_node_details (
     -- Operating hours - human readable or ISO 8601 (optional, max 200 chars)
     hours_of_operation TEXT CHECK(length(hours_of_operation) <= 200),
     
-    -- Estimated time to spend at this location in minutes (optional)
-    estimated_visit_duration_minutes INTEGER CHECK(estimated_visit_duration_minutes > 0),
-    
     -- Timestamp
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -48,8 +45,8 @@ CREATE TABLE IF NOT EXISTS transition_node_details (
         'walking', 'car', 'bus', 'train', 'bike', 'taxi', 'flight', 'other'
     )),
     
-    -- Estimated duration in minutes (required, > 0)
-    estimated_duration_minutes INTEGER NOT NULL CHECK(estimated_duration_minutes > 0),
+    -- Description of the transition (optional, max 1000 chars)
+    description TEXT CHECK(length(description) <= 1000),
     
     -- Route notes/directions (optional, max 500 chars)
     route_notes TEXT CHECK(length(route_notes) <= 500),

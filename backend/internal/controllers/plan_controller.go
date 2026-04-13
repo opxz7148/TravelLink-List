@@ -56,6 +56,15 @@ type UpdatePlanRequest struct {
 }
 
 // BrowsePlans handles GET /api/v1/plans - browse published plans
+// @Summary Browse published travel plans
+// @Description Get paginated list of published travel plans with ratings and comments (public endpoint)
+// @Tags plans
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(20)
+// @Success 200 {object} map[string]interface{} "List of published plans with pagination"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans [get]
 func (pc *PlanController) BrowsePlans(c *gin.Context) {
 	// Parse query parameters
 	pageStr := c.DefaultQuery("page", "1")
@@ -117,6 +126,17 @@ func (pc *PlanController) BrowsePlans(c *gin.Context) {
 }
 
 // SearchPlans handles GET /api/v1/plans/search - search published plans
+// @Summary Search published travel plans
+// @Description Search published plans by title, description, or destination (public endpoint)
+// @Tags plans
+// @Produce json
+// @Param q query string true "Search query (required)"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(20)
+// @Success 200 {object} map[string]interface{} "Search results with pagination"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Missing search query"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/search [get]
 func (pc *PlanController) SearchPlans(c *gin.Context) {
 	query := c.Query("q")
 	pageStr := c.DefaultQuery("page", "1")
@@ -182,7 +202,15 @@ func (pc *PlanController) SearchPlans(c *gin.Context) {
 	middleware.SuccessResponse(c, http.StatusOK, resp)
 }
 
-// GetPlanDetails handles GET /api/v1/plans/:id - get plan details
+// GetPlanDetails handles GET /api/v1/plans/:id - get plan details// @Summary Get travel plan details
+// @Description Retrieve detailed information about a published travel plan including nodes (public endpoint)
+// @Tags plans
+// @Produce json
+// @Param id path string true "Plan ID"
+// @Success 200 {object} map[string]interface{} "Plan details with nodes"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Plan not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/{id} [get]
 func (pc *PlanController) GetPlanDetails(c *gin.Context) {
 	planID := c.Param("id")
 
@@ -226,7 +254,19 @@ func (pc *PlanController) GetPlanDetails(c *gin.Context) {
 	middleware.SuccessResponse(c, http.StatusOK, resp)
 }
 
-// CreatePlan handles POST /api/v1/plans - create new draft plan
+// CreatePlan handles POST /api/v1/plans - create new draft plan// @Summary Create a new travel plan
+// @Description Create a draft travel plan. User must be traveller or admin. Plan starts in draft status.
+// @Tags plans
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param request body CreatePlanRequest true "Plan creation request"
+// @Success 201 {object} map[string]interface{} "Plan created with ID and details"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller or admin can create plans"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans [post]
 func (pc *PlanController) CreatePlan(c *gin.Context) {
 	var req CreatePlanRequest
 
@@ -240,6 +280,19 @@ func (pc *PlanController) CreatePlan(c *gin.Context) {
 	userID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
 		middleware.AuthErrorResponse(c, "User not authenticated")
+		return
+	}
+
+	// Check if user has traveller or admin role
+	userRole, okRole := c.Get("userRole")
+	if !okRole {
+		middleware.ForbiddenErrorResponse(c, "Unable to verify user role")
+		return
+	}
+
+	userRoleStr, isString := userRole.(string)
+	if !isString || (userRoleStr != "traveller" && userRoleStr != "admin") {
+		middleware.ForbiddenErrorResponse(c, "Only traveller or admin users can create plans")
 		return
 	}
 
@@ -272,6 +325,18 @@ func (pc *PlanController) CreatePlan(c *gin.Context) {
 }
 
 // PublishPlan handles PATCH /api/v1/plans/:id/publish - publish a draft plan
+// @Summary Publish a travel plan
+// @Description Change plan status from draft to published. Plan author or admin only.
+// @Tags plans
+// @Security Bearer
+// @Produce json
+// @Param id path string true "Plan ID"
+// @Success 200 {object} map[string]interface{} "Plan published successfully"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only plan author or admin can publish"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Plan not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/{id}/publish [patch]
 func (pc *PlanController) PublishPlan(c *gin.Context) {
 	planID := c.Param("id")
 
@@ -306,4 +371,107 @@ func (pc *PlanController) PublishPlan(c *gin.Context) {
 	}
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{"status": "published"})
+}
+
+// UpdatePlanNodesRequest represents request to add/reorder/remove nodes from a plan
+type UpdatePlanNodesRequest struct {
+	Operation string `json:"operation" binding:"required,oneof=add reorder remove"`
+	NodeID    string `json:"node_id" binding:"required"`
+	Position  int    `json:"position" binding:"min=0"` // Only used for add/reorder
+}
+
+// UpdatePlanNodes handles PATCH /api/v1/plans/{id}/nodes - add/reorder/remove nodes from plan
+// @Summary Update plan nodes (add/reorder/remove)
+// @Description Add, reorder, or remove nodes from a travel plan. Can only be done by plan author or admin.
+// @Tags plans
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id path string true "Plan ID"
+// @Param request body UpdatePlanNodesRequest true "Node operation request"
+// @Success 200 {object} map[string]interface{} "Operation completed successfully"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Invalid request or operation"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only plan author or admin can modify plan"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Plan or node not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /plans/{id}/nodes [patch]
+func (pc *PlanController) UpdatePlanNodes(c *gin.Context) {
+	planID := c.Param("id")
+	var req UpdatePlanNodesRequest
+
+	// Validate request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.ValidationErrorResponse(c, "invalid request", nil)
+		return
+	}
+
+	// Get current user
+	userID, ok := utilities.GetUserIDFromContext(c)
+	if !ok {
+		middleware.AuthErrorResponse(c, "User not authenticated")
+		return
+	}
+
+	// Verify plan ownership
+	plan, err := pc.planService.GetPlanByID(c.Request.Context(), planID)
+	if err != nil || plan == nil {
+		middleware.NotFoundErrorResponse(c, "Plan not found")
+		return
+	}
+
+	if plan.AuthorID != userID {
+		middleware.ForbiddenErrorResponse(c, "You do not have permission to modify this plan")
+		return
+	}
+
+	// Handle operation
+	switch req.Operation {
+	case "add":
+		if req.Position < 0 {
+			middleware.ValidationErrorResponse(c, "position must be >= 0", nil)
+			return
+		}
+		_, err := pc.planService.AddNodeToPlan(c.Request.Context(), planID, req.NodeID, req.Position)
+		if err != nil {
+			if err == models.ErrValidation {
+				middleware.ValidationErrorResponse(c, "Invalid node or plan state", nil)
+				return
+			}
+			middleware.InternalErrorResponse(c, "Failed to add node to plan")
+			return
+		}
+
+	case "reorder":
+		if req.Position < 0 {
+			middleware.ValidationErrorResponse(c, "position must be >= 0", nil)
+			return
+		}
+		err := pc.planService.ReorderNodeInPlan(c.Request.Context(), planID, req.NodeID, req.Position)
+		if err != nil {
+			if err == models.ErrValidation {
+				middleware.ValidationErrorResponse(c, "Node not found in plan", nil)
+				return
+			}
+			middleware.InternalErrorResponse(c, "Failed to reorder node")
+			return
+		}
+
+	case "remove":
+		err := pc.planService.RemoveNodeFromPlan(c.Request.Context(), planID, req.NodeID)
+		if err != nil {
+			if err == models.ErrValidation {
+				middleware.ValidationErrorResponse(c, "Node not found in plan", nil)
+				return
+			}
+			middleware.InternalErrorResponse(c, "Failed to remove node")
+			return
+		}
+
+	default:
+		middleware.ValidationErrorResponse(c, "unknown operation", nil)
+		return
+	}
+
+	middleware.SuccessResponse(c, http.StatusOK, gin.H{"message": "Operation completed successfully"})
 }

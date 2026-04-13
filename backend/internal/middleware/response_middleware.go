@@ -23,6 +23,13 @@ type ErrorInfo struct {
 	Details interface{} `json:"details,omitempty"`
 }
 
+// SwaggerErrorResponse is a response structure for Swagger documentation purposes
+// This type is used to document error responses in Swagger/OpenAPI specs
+type SwaggerErrorResponse struct {
+	Success bool      `json:"success" example:"false"`
+	Error   ErrorInfo `json:"error"`
+}
+
 // SuccessResponse returns a standard success response envelope
 func SuccessResponse(c *gin.Context, statusCode int, data interface{}) {
 	c.JSON(statusCode, ResponseEnvelope{
@@ -52,6 +59,11 @@ func ErrorResponse(c *gin.Context, statusCode int, code, message string, details
 // AuthErrorResponse returns a standard authentication error response
 func AuthErrorResponse(c *gin.Context, message string) {
 	ErrorResponse(c, http.StatusUnauthorized, "AUTH_ERROR", message, nil)
+}
+
+// AuthErrorResponseWithCode returns an authentication error with specific error code
+func AuthErrorResponseWithCode(c *gin.Context, code, message string) {
+	ErrorResponse(c, http.StatusUnauthorized, code, message, nil)
 }
 
 // ValidationErrorResponse returns a standard validation error response

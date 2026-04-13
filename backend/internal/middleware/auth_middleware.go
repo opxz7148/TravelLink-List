@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"strings"
 
 	"tll-backend/internal/models"
@@ -31,6 +32,7 @@ func RequireAuth(jwtService services.JWTService) gin.HandlerFunc {
 
 		// Extract token from "Bearer <token>" format
 		parts := strings.SplitN(authHeader, " ", 2)
+		fmt.Println(authHeader)
 		if len(parts) != 2 || parts[0] != BearerScheme {
 			AuthErrorResponse(c, "invalid authorization header format")
 			c.Abort()
@@ -93,4 +95,10 @@ func RequireRole(allowedRoles ...models.UserRole) gin.HandlerFunc {
 		ForbiddenErrorResponse(c, "insufficient permissions for this action")
 		c.Abort()
 	}
+}
+
+// RequireAdmin is a middleware that ensures the user is an admin
+// Must be used after RequireAuth middleware
+func RequireAdmin() gin.HandlerFunc {
+	return RequireRole(models.RoleAdmin)
 }

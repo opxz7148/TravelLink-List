@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"regexp"
 	"strings"
 
 	"tll-backend/internal/middleware"
 	"tll-backend/internal/models"
 	"tll-backend/internal/services"
+	"tll-backend/internal/utilities"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +24,23 @@ func NewAuthController(userService services.UserService, jwtService services.JWT
 		userService: userService,
 		jwtService:  jwtService,
 	}
+}
+
+// validatePassword checks if password meets security requirements:
+// - At least 8 characters
+// - At least one uppercase letter (A-Z)
+// - At least one digit (0-9)
+// - At least one special character (!@#$%^&*)
+func validatePassword(password string) bool {
+	if len(password) < 8 {
+		return false
+	}
+	
+	hasUppercase := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
+	hasSpecial := regexp.MustCompile(`[!@#$%^&*]`).MatchString(password)
+	
+	return hasUppercase && hasDigit && hasSpecial
 }
 
 // RegisterRequest represents user registration request payload
@@ -66,12 +85,22 @@ type UserResponse struct {
 }
 
 // Register handles POST /api/v1/auth/register
+// @Summary Register a new user
+// @Description Create a new user account with email, username, password, and display name
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration request"
+// @Success 201 {object} middleware.ResponseEnvelope "User successfully registered"
+// @Failure 400 {object} middleware.ResponseEnvelope "Validation error"
+// @Failure 500 {object} middleware.ResponseEnvelope "Internal server error"
+// @Router /auth/register [post]
 func (ac *AuthController) Register(c *gin.Context) {
 	var req RegisterRequest
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.ValidationErrorResponse(c, "invalid request", nil)
+		middleware.ValidationErrorResponse(c, "Invalid request format", nil)
 		return
 	}
 
@@ -79,6 +108,12 @@ func (ac *AuthController) Register(c *gin.Context) {
 	req.Email = strings.TrimSpace(req.Email)
 	req.Username = strings.TrimSpace(req.Username)
 	req.DisplayName = strings.TrimSpace(req.DisplayName)
+
+	// Validate password meets security requirements
+	if !validatePassword(req.Password) {
+		middleware.ValidationErrorResponse(c, "Password does not meet security requirements (min 8 chars, must include uppercase, digit, and special character)", gin.H{"field": "password"})
+		return
+	}
 
 	// Call service to register user
 	user, tokenResp, err := ac.userService.Register(c.Request.Context(), req.Email, req.Username, req.Password, req.DisplayName)
@@ -118,12 +153,23 @@ func (ac *AuthController) Register(c *gin.Context) {
 }
 
 // Login handles POST /api/v1/auth/login
+// @Summary Authenticate user and get access token
+// @Description Authenticate with email and password to receive JWT access token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login request with email and password"
+// @Success 200 {object} middleware.ResponseEnvelope "User successfully authenticated"
+// @Failure 400 {object} middleware.ResponseEnvelope "Validation error"
+// @Failure 401 {object} middleware.ResponseEnvelope "Invalid credentials or inactive user"
+// @Failure 500 {object} middleware.ResponseEnvelope "Internal server error"
+// @Router /auth/login [post]
 func (ac *AuthController) Login(c *gin.Context) {
 	var req LoginRequest
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.ValidationErrorResponse(c, "invalid request", nil)
+		middleware.ValidationErrorResponse(c, "Invalid request format", nil)
 		return
 	}
 
@@ -134,11 +180,15 @@ func (ac *AuthController) Login(c *gin.Context) {
 	user, tokenResp, err := ac.userService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		if err == models.ErrInvalidCredentials {
-			middleware.AuthErrorResponse(c, "Email or password is incorrect")
+			middleware.AuthErrorResponseWithCode(c, "INVALID_CREDENTIALS", "Email or password is incorrect")
 			return
 		}
 		if err == models.ErrUserInactive {
-			middleware.AuthErrorResponse(c, "User account is inactive")
+			middleware.AuthErrorResponseWithCode(c, "ACCOUNT_INACTIVE", "Your account has been deactivated by an administrator")
+			return
+		}
+		if err == models.ErrNotFound {
+			middleware.AuthErrorResponseWithCode(c, "INVALID_CREDENTIALS", "Email or password is incorrect")
 			return
 		}
 		middleware.InternalErrorResponse(c, "Failed to login")
@@ -167,4 +217,27 @@ func (ac *AuthController) Login(c *gin.Context) {
 	}
 
 	middleware.SuccessResponse(c, 200, resp)
+}
+
+// Logout handles POST /api/v1/auth/logout
+// @Summary Logout user
+// @Description Logout authenticated user. In a stateless JWT system, the client should discard the token.
+// @Tags auth
+// @Security Bearer
+// @Success 204 "User successfully logged out"
+// @Failure 401 {object} middleware.ResponseEnvelope "User not authenticated"
+// @Router /auth/logout [post]
+func (ac *AuthController) Logout(c *gin.Context) {
+	// Get authenticated user (just to verify auth)
+	_, ok := utilities.GetUserIDFromContext(c)
+	if !ok {
+		middleware.AuthErrorResponse(c, "User not authenticated")
+		return
+	}
+
+	// Note: In a stateless JWT system, logout is client-side (discard token)
+	// If implementing token blacklisting, add logic here
+	// For now, just return 204 No Content to signal success
+
+	c.Status(204) // No Content response
 }

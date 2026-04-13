@@ -8,6 +8,7 @@ import "time"
 //
 // Each PlanNode is a link in the linked list, pointed to by the next node via sequence_position.
 // The sequence ensures plans maintain a coherent order of attractions and transitions.
+// Duration fields allow planners to customize how long to spend at each node (per-plan basis).
 type PlanNode struct {
 	// id (UUID, primary key)
 	// Unique identifier for this plan-node association
@@ -25,6 +26,26 @@ type PlanNode struct {
 	// Position in the linked list (1 = first, 2 = second, etc.)
 	// Must be contiguous (no gaps) within a plan
 	SequencePosition int `gorm:"type:INTEGER;not null;index:idx_plan_node_seq,priority:2" json:"sequence_position"`
+
+	// description (string, max 500 chars, optional)
+	// Plan-specific context and annotations for this node in this plan
+	// Independent of node description, allows additional plan-level notes
+	// Example: "Try the house special pasta", "Scenic route with views"
+	Description *string `gorm:"type:TEXT;size:500" json:"description"`
+
+	// estimated_price_cents (integer, optional, in cents)
+	// Cost for this leg in the journey (cents to avoid floating-point issues)
+	// 1500 = $15.00, NULL or 0 = free
+	// Allows calculating total plan cost from sum of leg prices
+	EstimatedPriceCents *int `gorm:"type:INTEGER" json:"estimated_price_cents"`
+
+	// duration_minutes (integer, optional, in minutes)
+	// Plan-specific duration for this node in the context of this plan.
+	// For attractions: how long the planner wants to spend at the location (e.g., 90 minutes)
+	// For transitions: how long the planner expects travel to take (e.g., 30 minutes)
+	// Allows flexibility - same node can have different durations across different plans.
+	// If not set, frontend can display node's default duration values.
+	DurationMinutes *int `gorm:"type:INTEGER" json:"duration_minutes"`
 
 	// created_at (timestamp, UTC, immutable)
 	// When this node was added to the plan

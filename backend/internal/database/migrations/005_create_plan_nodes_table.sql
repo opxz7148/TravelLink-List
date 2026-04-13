@@ -1,6 +1,7 @@
 -- Migration: Create plan_nodes table (linked list association)
 -- Junction table representing the linked list structure of a TravelPlan
 -- Each node maintains a sequence position that ensures contiguous ordering
+-- Duration is stored here (not in node details) to allow plan-specific customization
 
 CREATE TABLE IF NOT EXISTS plan_nodes (
     -- Primary key: UUID string
@@ -17,6 +18,12 @@ CREATE TABLE IF NOT EXISTS plan_nodes (
     -- Sequence position: 1-indexed position in the linked list
     -- Position must be unique within a plan and form contiguous sequence (1..N with no gaps)
     sequence_position INTEGER NOT NULL CHECK(sequence_position > 0),
+    
+    -- Duration in minutes (optional, plan-specific)
+    -- For attractions: how long planner wants to spend at the location
+    -- For transitions: how long planner expects travel to take
+    -- Stored here instead of node details to allow flexibility across different plans
+    duration_minutes INTEGER CHECK(duration_minutes > 0),
     
     -- Created at: UTC timestamp, immutable, auto-set on creation
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

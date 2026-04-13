@@ -1,3 +1,24 @@
+// @title           TravelLink API
+// @version         1.0
+// @description     Travel Linked List API - Browse, create, and share travel plans
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@travellink.local
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8000
+// @basePath  /api/v1
+
+// @securityDefinitions.apiKey Bearer
+// @in header
+// @name Authorization
+// @type apiKey
+// @description Enter JWT token in the format: Bearer eyJhbGci...
+
 package main
 
 import (
@@ -9,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "tll-backend/docs"
 	"tll-backend/internal/server"
 )
 

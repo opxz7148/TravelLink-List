@@ -37,13 +37,24 @@ type CreateAttractionRequest struct {
 
 // CreateTransitionRequest represents transition creation request
 type CreateTransitionRequest struct {
-	Mode                     string `json:"mode" binding:"required"`
-	EstimatedDurationMinutes int    `json:"estimated_duration_minutes" binding:"required,gt=0"`
-	RouteNotes               string `json:"route_notes" binding:"max=500"`
-	EstimatedDistanceKm      float64 `json:"estimated_distance_km"`
+	Title            string `json:"title" binding:"required,max=200"`
+	Mode             string `json:"mode" binding:"required"`
+	Description      string `json:"description" binding:"max=1000"`
+	HoursOfOperation string `json:"hours_of_operation" binding:"max=200"`
+	RouteNotes       string `json:"route_notes" binding:"max=500"`
 }
 
 // ListNodes handles GET /api/v1/nodes - list available nodes
+// @Summary List available nodes
+// @Description Get paginated list of approved nodes (attractions and/or transitions). Can filter by type. (public endpoint)
+// @Tags nodes
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(50)
+// @Param type query string false "Node type filter" Enums(attraction,transition)
+// @Success 200 {object} map[string]interface{} "Nodes list with pagination"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /nodes [get]
 func (nc *NodeController) ListNodes(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "50")
@@ -90,6 +101,15 @@ func (nc *NodeController) ListNodes(c *gin.Context) {
 }
 
 // GetNodeDetail handles GET /api/v1/nodes/:id - get node details
+// @Summary Get node details
+// @Description Retrieve detailed information about a node (attraction or transition). Details include full information for the specific node type. (public endpoint)
+// @Tags nodes
+// @Produce json
+// @Param id path string true "Node ID"
+// @Success 200 {object} map[string]interface{} "Node details"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "Node not found"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /nodes/{id} [get]
 func (nc *NodeController) GetNodeDetail(c *gin.Context) {
 	nodeID := c.Param("id")
 
@@ -109,6 +129,19 @@ func (nc *NodeController) GetNodeDetail(c *gin.Context) {
 }
 
 // CreateAttractionNode handles POST /api/v1/nodes/attraction - create attraction node
+// @Summary Create an attraction node
+// @Description Create a new user-generated attraction node. Requires admin approval before public use. Traveller or admin only.
+// @Tags nodes
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param request body CreateAttractionRequest true "Attraction creation request"
+// @Success 201 {object} map[string]interface{} "Attraction node created (pending approval)"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller or admin can create nodes"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /nodes/attraction [post]
 func (nc *NodeController) CreateAttractionNode(c *gin.Context) {
 	var req CreateAttractionRequest
 
@@ -127,13 +160,12 @@ func (nc *NodeController) CreateAttractionNode(c *gin.Context) {
 
 	// Build attraction detail object
 	detail := &models.AttractionNodeDetail{
-		Name:                          req.Name,
-		Category:                      req.Category,
-		Location:                      req.Location,
-		Description:                   req.Description,
-		ContactInfo:                   req.ContactInfo,
-		HoursOfOperation:              req.HoursOfOperation,
-		EstimatedVisitDurationMinutes: &req.EstimatedVisitDurationMin,
+		Name:             req.Name,
+		Category:         req.Category,
+		Location:         req.Location,
+		Description:      req.Description,
+		ContactInfo:      req.ContactInfo,
+		HoursOfOperation: req.HoursOfOperation,
 	}
 
 	// Call service
@@ -154,12 +186,27 @@ func (nc *NodeController) CreateAttractionNode(c *gin.Context) {
 }
 
 // CreateTransitionNode handles POST /api/v1/nodes/transition - create transition node
+// @Summary Create a transition node
+// @Description Create a new user-generated transition node (journey between attractions). Requires admin approval before public use. Traveller or admin only.
+// @Description Transition nodes represent movement between attractions with modes like walking, car, bus, train, bike, taxi, or flight.
+// @Description Fields: title (service/line identifier like "Bus Line 5"), mode (transportation type), hours (operating hours if applicable), description, route_notes, distance
+// @Tags nodes
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param request body CreateTransitionRequest true "Transition creation request"
+// @Success 201 {object} map[string]interface{} "Transition node created (pending approval)"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller or admin can create nodes"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /nodes/transition [post]
 func (nc *NodeController) CreateTransitionNode(c *gin.Context) {
 	var req CreateTransitionRequest
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.ValidationErrorResponse(c, "invalid request", nil)
+		middleware.ValidationErrorResponse(c, err.Error(), nil)
 		return
 	}
 
@@ -171,12 +218,16 @@ func (nc *NodeController) CreateTransitionNode(c *gin.Context) {
 	}
 
 	// Build transition detail object
-	distance := req.EstimatedDistanceKm
+	var hoursOfOp *string
+	if req.HoursOfOperation != "" {
+		hoursOfOp = &req.HoursOfOperation
+	}
 	detail := &models.TransitionNodeDetail{
-		Mode:                    req.Mode,
-		EstimatedDurationMinutes: req.EstimatedDurationMinutes,
-		RouteNotes:              req.RouteNotes,
-		EstimatedDistanceKm:     &distance,
+		Title:            req.Title,
+		Mode:             req.Mode,
+		Description:      req.Description,
+		HoursOfOperation: hoursOfOp,
+		RouteNotes:       req.RouteNotes,
 	}
 
 	// Call service
