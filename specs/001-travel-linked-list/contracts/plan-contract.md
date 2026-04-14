@@ -160,7 +160,6 @@ Authorization: Bearer <access_token> (optional for published plans, required for
           "type": "transition",
           "sequence": 2,
           "mode": "walking",
-          "estimated_duration_minutes": 15,
           "route_notes": "Walk along the Seine toward Pont des Arts"
         },
         {

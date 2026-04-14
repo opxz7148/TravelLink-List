@@ -149,19 +149,22 @@ Specialization of Node representing a point of interest.
 
 #### Entity: TransitionNode
 
-Specialization of Node representing movement between attractions.
+Specialization of Node representing movement between attractions. Stores immutable information about a transportation mode or service.
 
 **Additional Fields**:
+- `title` (string, max 200 chars, required, e.g., "Bus Line 5", "M1 Train", "Walking")
 - `mode` (enum: `walking` | `car` | `bus` | `train` | `bike` | `taxi` | `flight` | `other`, required)
-- `estimated_duration_minutes` (integer, required, > 0)
+- `description` (string, max 1000 chars, optional, general information independent of plan, e.g., "Public transit connecting downtown to airport")
+- `hours_of_operation` (string, max 200 chars, optional, e.g., "Mon-Fri 6:00-23:00, Sat-Sun 7:00-22:00")
 - `route_notes` (string, max 500 chars, optional, e.g., "Take line 5 north, exit at Main St")
-- `estimated_distance_km` (decimal, optional)
 
 **Validation Rules**:
+- Title: Required, 1-200 chars, identifies the specific service/line (immutable)
 - Mode: Required, must be one of enum values
-- Duration: Required, must be > 0 minutes
+- Description: Optional, general information independent of any specific plan
+- Hours of operation: Optional, applies to the service itself (e.g., public transit schedules)
 - Route notes: Optional, max 500 chars
-- Distance: Optional, if provided must be > 0
+- All transition node fields are immutable after creation (system nodes only)
 
 **Relationships**:
 - Extends Node
@@ -178,13 +181,16 @@ Specialization of Node representing movement between attractions.
 
 #### Entity: PlanNode
 
-Association entity representing the linked list structure of a TravelPlan.
+Association entity representing the linked list structure of a TravelPlan with plan-specific customizations.
 
 **Fields**:
 - `id` (UUID, primary key)
 - `plan_id` (UUID, foreign key to TravelPlan)
 - `node_id` (UUID, foreign key to Node)
 - `sequence_position` (integer, 1-indexed, required)
+- `description` (string, max 500 chars, optional, plan-specific context independent of node, e.g., "Try the house special pasta", "Scenic route with views")
+- `estimated_price_cents` (integer, optional, > 0, cost in cents for this leg in the journey, e.g., 1500 = $15.00)
+- `duration_minutes` (integer, optional, plan-specific duration customization)
 - `created_at` (timestamp, UTC, immutable)
  
 **Validation Rules**:

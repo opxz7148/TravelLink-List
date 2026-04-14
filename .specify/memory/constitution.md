@@ -1,11 +1,12 @@
 # TravelLink Constitution
 
 <!-- 
-Sync Impact Report (v1.0.1 Amendment - SQLite3 Specification):
-- Version: 1.0.0 → 1.0.1 (PATCH: clarification of storage technology)
-- Modified: Technology Stack section - Specified SQLite3 instead of PostgreSQL
-- Impact: All tasks and plans updated to remove Docker Compose, use file-based SQLite3
-- Date: 2026-04-05
+Sync Impact Report (v1.1.0 Amendment - DRY Principle):
+- Version: 1.0.1 → 1.1.0 (MINOR: new principle VI added for code quality)
+- Added: Principle VI. Code Quality & DRY - guides agents and developers to avoid code duplication
+- Rationale: Prevents maintenance burden, reduces bugs, improves consistency
+- Impact: All future code generation must check for and refactor duplicated patterns
+- Date: 2026-04-12
 -->
 
 ## Core Principles
@@ -47,6 +48,16 @@ Data access MUST be abstracted behind repository interfaces:
 - Services and upper layers interact only with repository interfaces; database technology (SQLite3, PostgreSQL, MongoDB) change MUST NOT ripple into business logic
 - Repository MUST not contain business logic; it is a pure data accessor
 
+### VI. Code Quality & DRY Principle
+Code MUST follow the Don't Repeat Yourself (DRY) principle to minimize duplication and maintenance burden:
+- **Pattern Extraction**: When identical or near-identical code blocks appear 2+ times, refactor into a reusable helper, utility function, or shared method
+- **Semantic Duplication**: Repeated logic patterns (e.g., validation, authorization checks, status comparisons) MUST be consolidated into single implementation; extract to private helpers or well-named methods
+- **Documentation Duplication**: Avoid copy-pasting identical documentation across multiple methods; use shared explanations or link to common patterns
+- **Scope of Extraction**: Helpers MUST be named clearly to reflect their purpose; extraction threshold is readability vs. performance trade-off (prefer clarity and maintainability)
+- **Interface Consistency**: Related methods in the same entity or service MUST follow identical validation, error handling, and response patterns
+- **Code Review**: All pull requests MUST be reviewed for DRY violations; duplications MUST be consolidated before merge
+- **Scope Exception**: Documentation and comments may repeat for clarity in API contracts and method signatures (e.g., pagination parameter docs in repository methods); this is accepted for API clarity and IDE hover hints
+
 ## Technology Stack
 Backend: Go 1.x with Gin web framework  
 Frontend: Vue 3 (Composition API preferred)  
@@ -84,4 +95,4 @@ This constitution defines non-negotiable architectural rules. All decisions rega
 
 **Compliance Verification**: All pull requests reviewed for principle adherence; violations block merge until corrected.
 
-**Version**: 1.0.1 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-04-05
+**Version**: 1.1.0 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-04-12

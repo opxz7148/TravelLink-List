@@ -158,51 +158,7 @@ Content-Type: application/json
 
 ---
 
-## Endpoint 3: Token Refresh (Optional)
-
-### Request
-
-```
-POST /api/v1/auth/refresh
-Authorization: Bearer <refresh_token>
-```
-
-**Note**: Refresh token sent as HTTP-only cookie or in Authorization header (if cookie-based auth not available).
-
-### Response: Success (200 OK)
-
-```json
-{
-  "success": true,
-  "api_version": "1.0",
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (new token)",
-    "token_type": "Bearer",
-    "expires_in": 3600
-  },
-  "error": null,
-  "timestamp": "2026-04-05T10:30:00Z"
-}
-```
-
-### Response: Invalid Token (401 Unauthorized)
-
-```json
-{
-  "success": false,
-  "api_version": "1.0",
-  "data": null,
-  "error": {
-    "code": "INVALID_REFRESH_TOKEN",
-    "message": "Refresh token expired or invalid"
-  },
-  "timestamp": "2026-04-05T10:30:00Z"
-}
-```
-
----
-
-## Endpoint 4: Logout
+## Endpoint 3: Logout
 
 ### Request
 
@@ -217,7 +173,7 @@ Authorization: Bearer <access_token>
 204 No Content
 ```
 
-**Note**: Client should discard access_token and refresh_token locally. Server may invalidate refresh_token if persistent token store is maintained (Phase 2 optimization).
+**Note**: Client should discard access_token locally.
 
 ---
 
@@ -235,10 +191,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Refresh Token** (if implemented):
-- Same structure as access token
-- Expiration: 7 days
-- Issued only on login, not automatically
+
 
 ---
 
@@ -263,7 +216,7 @@ Authorization: Bearer <access_token>
 | `INVALID_REFRESH_TOKEN` | 401 | Refresh token expired or not found |
 | `INTERNAL_SERVER_ERROR` | 500 | Unexpected server error |
 
----
+
 
 ## Summary
 

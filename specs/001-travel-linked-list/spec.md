@@ -151,7 +151,7 @@ Admins can review and remove inappropriate travel plans from the platform.
 - **TravelPlan**: id, title, description, author_id, destination, status (draft/published/suspended), created_at, updated_at, rating_avg, comment_count
 - **Node**: id, type (attraction/transition), created_by (user_id), created_at, is_approved (for user-created nodes)
 - **AttractionNode** (extends Node): name, category (tourist/restaurant/hotel/etc), location, description, contact_info, hours_of_operation
-- **TransitionNode** (extends Node): mode (walking/car/bus/train), estimated_duration_minutes, route_notes, start_node_id, end_node_id
+- **TransitionNode** (extends Node): mode (walking/car/bus/train), route_notes, start_node_id, end_node_id
 - **PlanNode** (association): plan_id, node_id, sequence_position (for linked list order)
 - **Comment**: id, plan_id, user_id, text, created_at, updated_at
 - **Rating**: id, plan_id, user_id, stars (1-5), created_at
