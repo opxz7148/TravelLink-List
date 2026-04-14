@@ -64,7 +64,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { Node, AttractionNode, TransitionNode } from '../services/node_service';
+import { getNodeName as getNodeNameHelper, getNodeDescription as getNodeDescriptionHelper } from '../services/node_service';
+import type { Node } from '../services/node_service';
 
 interface Props {
   selectedNodes: string[];
@@ -100,24 +101,22 @@ function getNode(nodeId: string): Node | undefined {
   return props.availableNodes.find((n) => n.id === nodeId);
 }
 
+/**
+ * Get display name for a node - uses embedded detail structure
+ */
 function getNodeName(nodeId: string): string {
   const node = getNode(nodeId);
   if (!node) return 'Unknown';
-
-  if (node.type === 'attraction') {
-    return (node as AttractionNode).name;
-  }
-  return 'Transition';
+  return getNodeNameHelper(node);
 }
 
+/**
+ * Get display description for a node - uses embedded detail structure
+ */
 function getNodeDescription(nodeId: string): string {
   const node = getNode(nodeId);
   if (!node) return '';
-
-  if (node.type === 'attraction') {
-    return (node as AttractionNode).description || '';
-  }
-  return (node as TransitionNode).description || '';
+  return getNodeDescriptionHelper(node);
 }
 
 function startDrag(index: number): void {

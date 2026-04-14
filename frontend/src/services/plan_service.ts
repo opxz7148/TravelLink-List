@@ -24,12 +24,29 @@ export interface PlanNode {
   id: string;
   type: 'attraction' | 'transition';
   sequence_position: number;
+  description?: string | null;                 // Plan-specific notes
+  estimated_price_cents?: number | null;       // Plan-specific cost
+  duration_minutes?: number | null;            // Plan-specific duration
   details?: {
+    // For attractions
     name?: string;
     description?: string;
     location?: string;
-    duration_minutes?: number;
+    category?: string;
+    // For transitions
+    title?: string;
   };
+}
+
+/**
+ * Plan-specific details for a node when creating/editing a plan
+ * Allows customization of node properties per plan
+ */
+export interface NodeDetailForPlan {
+  node_id: string;
+  description?: string; // Plan-specific notes (max 500 chars)
+  estimated_price_cents?: number; // Cost in cents (e.g., 1500 = $15.00)
+  duration_minutes?: number; // Duration in minutes for this node in this plan
 }
 
 export interface ListPlansRequest {
@@ -56,7 +73,7 @@ export const planService = {
     page: number;
   }> {
     const response = await api.get('/plans', { params });
-    return response.data;
+    return response.data.data;
   },
 
   /**
@@ -67,7 +84,8 @@ export const planService = {
     total: number;
   }> {
     const response = await api.get('/plans/search', { params });
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plans, pagination }, timestamp }
+    return response.data.data;
   },
 
   /**
@@ -75,7 +93,11 @@ export const planService = {
    */
   async getPlanDetail(planId: string): Promise<PlanDetail> {
     const response = await api.get(`/plans/${planId}`);
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, nodes }, timestamp }
+    return {
+      ...response.data.data.plan,
+      nodes: response.data.data.nodes,
+    };
   },
 
   /**
@@ -83,18 +105,48 @@ export const planService = {
    */
   async getUserPlans(): Promise<TravelPlan[]> {
     const response = await api.get('/users/me/plans');
-    return response.data;
+    // Backend response envelope: { success, api_version, data: [...], timestamp }
+    return response.data.data;
+  },
+
+  /**
+   * Create a new travel plan with nodes and plan-specific details in a single request (traveller only)
+   * @param title Plan title
+   * @param destination Plan destination
+   * @param nodeDetails Array of node details with plan-specific information (description, price, duration)
+   * @param status Plan initial status: 'draft' or 'published' (default: 'draft')
+   * @returns Complete plan with added nodes
+   */
+  async createPlanWithNodes(
+    title: string,
+    destination: string,
+    nodeDetails: NodeDetailForPlan[],
+    status: 'draft' | 'published' = 'draft'
+  ): Promise<PlanDetail> {
+    const response = await api.post(`/plans?status=${status}`, {
+      title,
+      destination,
+      nodes: nodeDetails,
+    });
+    // Backend response envelope: { success, api_version, data: { plan, nodes }, timestamp }
+    return {
+      ...response.data.data.plan,
+      nodes: response.data.data.nodes,
+    };
   },
 
   /**
    * Create a new draft travel plan (traveller only)
+   * @deprecated Use createPlanWithNodes instead
    */
   async createDraftPlan(title: string, destination: string): Promise<TravelPlan> {
-    const response = await api.post('/plans', {
+    const response = await api.post('/plans?status=draft', {
       title,
       destination,
+      nodes: [],
     });
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, ... }, timestamp }
+    return response.data.data.plan;
   },
 
   /**
@@ -107,7 +159,11 @@ export const planService = {
     const response = await api.patch(`/plans/${planId}/nodes`, {
       node_ids: nodeIds,
     });
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, nodes }, timestamp }
+    return {
+      ...response.data.data.plan,
+      nodes: response.data.data.nodes,
+    };
   },
 
   /**
@@ -120,7 +176,11 @@ export const planService = {
     const response = await api.patch(`/plans/${planId}/nodes/reorder`, {
       node_ids: orderedNodeIds,
     });
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, nodes }, timestamp }
+    return {
+      ...response.data.data.plan,
+      nodes: response.data.data.nodes,
+    };
   },
 
   /**
@@ -135,7 +195,8 @@ export const planService = {
    */
   async publishPlan(planId: string): Promise<TravelPlan> {
     const response = await api.patch(`/plans/${planId}/publish`);
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, ... }, timestamp }
+    return response.data.data.plan;
   },
 
   /**
@@ -146,7 +207,8 @@ export const planService = {
     data: Partial<{ title: string; destination: string }>
   ): Promise<TravelPlan> {
     const response = await api.patch(`/plans/${planId}`, data);
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, ... }, timestamp }
+    return response.data.data.plan;
   },
 
   /**
@@ -161,6 +223,7 @@ export const planService = {
    */
   async suspendPlan(planId: string): Promise<TravelPlan> {
     const response = await api.patch(`/admin/plans/${planId}/suspend`);
-    return response.data;
+    // Backend response envelope: { success, api_version, data: { plan, ... }, timestamp }
+    return response.data.data.plan;
   },
 };

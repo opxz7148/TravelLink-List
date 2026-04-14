@@ -79,6 +79,23 @@ type PlanService interface {
 	// Returns ErrValidation if validation fails
 	AddNodeToPlan(ctx context.Context, planID, nodeID string, position int) (string, error)
 
+	// AddNodeToPlanWithDetails adds a node to a travel plan with plan-specific details
+	// Includes description, estimated price, and duration customized for this plan
+	// Parameters:
+	//   - description: Plan-specific notes about this node (optional, max 500 chars)
+	//   - estimatedPriceCents: Cost for this leg in cents (optional, >= 0)
+	//   - durationMinutes: How long to spend at this node in this plan (optional, > 0)
+	// Returns new PlanNode ID on success
+	// Returns ErrValidation if validation fails
+	AddNodeToPlanWithDetails(
+		ctx context.Context,
+		planID, nodeID string,
+		position int,
+		description *string,
+		estimatedPriceCents *int,
+		durationMinutes *int,
+	) (string, error)
+
 	// GetPlanNodes retrieves all nodes in a travel plan with their details
 	// Ordered by sequence_position (1..N)
 	// Includes both Node and NodeDetail information for display
@@ -324,27 +341,17 @@ func (s *RelationalPlanService) AddNodeToPlan(ctx context.Context, planID, nodeI
 	}
 
 	// Validate node exists
-	detail, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
 	if err != nil {
 		return "", err
 	}
 
-	if detail == nil {
+	if node == nil {
 		return "", models.ErrNotFound
 	}
 
-	// Get the base node from detail for type checking
-	var nodeType string
-	switch d := detail.(type) {
-	case *models.AttractionNodeDetail:
-		if d.Node != nil {
-			nodeType = d.Node.Type
-		}
-	case *models.TransitionNodeDetail:
-		if d.Node != nil {
-			nodeType = d.Node.Type
-		}
-	}
+	// Get node type for validation
+	nodeType := node.Type
 
 	// Create PlanNode with auto-generated ID
 	planNode := &models.PlanNode{
@@ -365,26 +372,86 @@ func (s *RelationalPlanService) AddNodeToPlan(ctx context.Context, planID, nodeI
 
 		// Check if adding this node would create consecutive attractions
 		for _, existingNode := range existingNodes {
-			existingDetail, err := s.nodeRepo.GetNodeByID(ctx, existingNode.NodeID)
+			existingNodeData, err := s.nodeRepo.GetNodeByID(ctx, existingNode.NodeID)
 			if err != nil {
 				return "", err
 			}
 
-			// Extract node type from detail
-			var existingNodeType string
-			switch d := existingDetail.(type) {
-			case *models.AttractionNodeDetail:
-				if d.Node != nil {
-					existingNodeType = d.Node.Type
-				}
-			case *models.TransitionNodeDetail:
-				if d.Node != nil {
-					existingNodeType = d.Node.Type
+			// If the existing node is also an attraction, reject consecutive attractions
+			if existingNodeData != nil && existingNodeData.Type == string(models.NodeTypeAttraction) {
+				if position <= 0 || position > len(existingNodes)+1 {
+					// Appending to attraction, or inserting at end - would create consecutive
+					return "", models.ErrValidation
 				}
 			}
+		}
+	}
 
-			// If the last node in the plan is also an attraction, reject
-			if existingDetail != nil && existingNodeType == string(models.NodeTypeAttraction) {
+	// Add node to plan via repository
+	return s.planRepo.AddNodeToPlan(ctx, planNode)
+}
+
+// AddNodeToPlanWithDetails adds a node to a travel plan with plan-specific details
+// Includes description, estimated price, and duration customized for this plan
+func (s *RelationalPlanService) AddNodeToPlanWithDetails(
+	ctx context.Context,
+	planID, nodeID string,
+	position int,
+	description *string,
+	estimatedPriceCents *int,
+	durationMinutes *int,
+) (string, error) {
+	// Validate plan exists
+	plan, err := s.planRepo.GetPlanByID(ctx, planID)
+	if err != nil {
+		return "", err
+	}
+
+	if plan == nil {
+		return "", models.ErrNotFound
+	}
+
+	// Validate node exists
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		return "", err
+	}
+
+	if node == nil {
+		return "", models.ErrNotFound
+	}
+
+	// Get node type for validation
+	nodeType := node.Type
+
+	// Create PlanNode with plan-specific details
+	planNode := &models.PlanNode{
+		ID:                  uuid.New().String(),
+		PlanID:              planID,
+		NodeID:              nodeID,
+		SequencePosition:    position,
+		Description:         description,
+		EstimatedPriceCents: estimatedPriceCents,
+		DurationMinutes:     durationMinutes,
+		CreatedAt:           time.Now().UTC(),
+	}
+
+	// Validate attraction sequence (no consecutive attractions)
+	if nodeType == string(models.NodeTypeAttraction) {
+		existingNodes, err := s.planRepo.GetPlanNodes(ctx, planID)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if adding this node would create consecutive attractions
+		for _, existingNode := range existingNodes {
+			existingNodeData, err := s.nodeRepo.GetNodeByID(ctx, existingNode.NodeID)
+			if err != nil {
+				return "", err
+			}
+
+			// If the existing node is also an attraction, reject consecutive attractions
+			if existingNodeData != nil && existingNodeData.Type == string(models.NodeTypeAttraction) {
 				if position <= 0 || position > len(existingNodes)+1 {
 					// Appending to attraction, or inserting at end - would create consecutive
 					return "", models.ErrValidation
@@ -415,16 +482,16 @@ func (s *RelationalPlanService) GetPlanNodeDetails(ctx context.Context, planID s
 	details := make(map[string]interface{})
 
 	for _, pn := range planNodes {
-		detail, err := s.nodeRepo.GetNodeByID(ctx, pn.NodeID)
+		node, err := s.nodeRepo.GetNodeByID(ctx, pn.NodeID)
 		if err != nil {
 			return nil, err
 		}
 
-		if detail != nil {
-			// Include both planNode and detail
+		if node != nil {
+			// Include both planNode and node with embedded details
 			details[pn.NodeID] = map[string]interface{}{
 				"planNode": pn,
-				"node":     detail,
+				"node":     node,
 			}
 		}
 	}
@@ -467,46 +534,20 @@ func (s *RelationalPlanService) ValidatePlanNodeSequence(ctx context.Context, pl
 
 	// Check for consecutive attractions
 	for i := 0; i < len(planNodes)-1; i++ {
-		currentDetail, err := s.nodeRepo.GetNodeByID(ctx, planNodes[i].NodeID)
+		currentNode, err := s.nodeRepo.GetNodeByID(ctx, planNodes[i].NodeID)
 		if err != nil {
 			return err
 		}
 
-		nextDetail, err := s.nodeRepo.GetNodeByID(ctx, planNodes[i+1].NodeID)
+		nextNode, err := s.nodeRepo.GetNodeByID(ctx, planNodes[i+1].NodeID)
 		if err != nil {
 			return err
 		}
 
-		// Extract node types from details
-		var currentNodeType string
-		var nextNodeType string
-
-		switch d := currentDetail.(type) {
-		case *models.AttractionNodeDetail:
-			if d.Node != nil {
-				currentNodeType = d.Node.Type
-			}
-		case *models.TransitionNodeDetail:
-			if d.Node != nil {
-				currentNodeType = d.Node.Type
-			}
-		}
-
-		switch d := nextDetail.(type) {
-		case *models.AttractionNodeDetail:
-			if d.Node != nil {
-				nextNodeType = d.Node.Type
-			}
-		case *models.TransitionNodeDetail:
-			if d.Node != nil {
-				nextNodeType = d.Node.Type
-			}
-		}
-
-		// Two consecutive attractions is invalid
-		if currentDetail != nil && nextDetail != nil &&
-			currentNodeType == string(models.NodeTypeAttraction) &&
-			nextNodeType == string(models.NodeTypeAttraction) {
+		// Check if both nodes are attractions (consecutive attractions not allowed)
+		if currentNode != nil && nextNode != nil &&
+			currentNode.Type == string(models.NodeTypeAttraction) &&
+			nextNode.Type == string(models.NodeTypeAttraction) {
 			return models.ErrValidation
 		}
 	}

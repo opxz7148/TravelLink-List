@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import NodeCard from './NodeCard.vue';
-import { nodeService } from '../services/node_service';
+import { nodeService, getNodeName, getNodeDescription } from '../services/node_service';
 import type { Node } from '../services/node_service';
 
 interface Props {
@@ -100,6 +100,7 @@ onMounted(async () => {
       approved_only: true,
       limit: 100,
     });
+    console.log('Fetched nodes:', result.nodes);
     allNodes.value = result.nodes;
   } catch (error) {
     console.error('Failed to load nodes:', error);
@@ -109,12 +110,12 @@ onMounted(async () => {
 const filteredNodes = computed(() => {
   let results = allNodes.value;
 
-  // Filter by search query
+  // Filter by search query - search in node name and description via helper functions
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
     results = results.filter((node) => {
-      const name = node.type === 'attraction' ? (node as any).name : 'Transition';
-      const desc = (node as any).description || '';
+      const name = getNodeName(node);
+      const desc = getNodeDescription(node);
       return name.toLowerCase().includes(query) || desc.toLowerCase().includes(query);
     });
   }
@@ -153,10 +154,6 @@ function deselectNode(nodeId: string): void {
   }
 }
 
-function filterNodes(): void {
-  currentPage.value = 1;
-}
-
 function previousPage(): void {
   if (currentPage.value > 1) {
     currentPage.value--;
@@ -167,5 +164,9 @@ function nextPage(): void {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
   }
+}
+
+function filterNodes(): void {
+  currentPage.value = 1;
 }
 </script>

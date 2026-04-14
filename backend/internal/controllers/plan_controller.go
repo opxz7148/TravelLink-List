@@ -16,36 +16,59 @@ import (
 // PlanController handles travel plan operations
 type PlanController struct {
 	planService services.PlanService
+	nodeService services.NodeService
 }
 
 // NewPlanController creates a new plan controller
-func NewPlanController(planService services.PlanService) *PlanController {
+func NewPlanController(planService services.PlanService, nodeService services.NodeService) *PlanController {
 	return &PlanController{
 		planService: planService,
+		nodeService: nodeService,
 	}
 }
 
 // PlanResponse represents plan data in API response
 type PlanResponse struct {
-	ID             string `json:"id"`
-	Title          string `json:"title"`
-	Description    string `json:"description"`
-	Destination    string `json:"destination"`
-	AuthorID       string `json:"author_id"`
-	Status         string `json:"status"`
-	RatingAverage  float64 `json:"rating_average"`
-	RatingCount    int    `json:"rating_count"`
-	CommentCount   int    `json:"comment_count"`
-	NodeCount      int    `json:"node_count"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	Description   string  `json:"description"`
+	Destination   string  `json:"destination"`
+	AuthorID      string  `json:"author_id"`
+	Status        string  `json:"status"`
+	RatingAverage float64 `json:"rating_average"`
+	RatingCount   int     `json:"rating_count"`
+	CommentCount  int     `json:"comment_count"`
+	NodeCount     int     `json:"node_count"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
 }
 
-// CreatePlanRequest represents plan creation request
+// PlanNodeResponse represents a node within a plan with enriched details
+// Combines PlanNode (plan-specific data) with Node details (type, name, location, etc.)
+type PlanNodeResponse struct {
+	ID                  string      `json:"id"`                    // PlanNode ID (plan-node association ID)
+	SequencePosition    int         `json:"sequence_position"`     // Position in the linked list (1-indexed)
+	Type                string      `json:"type"`                  // Node type: "attraction" or "transition"
+	Description         *string     `json:"description"`           // Plan-specific notes (optional)
+	EstimatedPriceCents *int        `json:"estimated_price_cents"` // Plan-specific cost in cents (optional)
+	DurationMinutes     *int        `json:"duration_minutes"`      // Plan-specific duration in minutes (optional)
+	Details             interface{} `json:"details"`               // Node detail object (name, location, etc based on type)
+}
+
+// NodeDetailRequest represents plan-specific information for a node in a plan
+type NodeDetailRequest struct {
+	NodeID              string  `json:"node_id" binding:"required"`
+	Description         *string `json:"description" binding:"max=500"`         // Plan-specific notes (optional)
+	EstimatedPriceCents *int    `json:"estimated_price_cents" binding:"min=0"` // Cost in cents (optional)
+	DurationMinutes     *int    `json:"duration_minutes" binding:"min=1"`      // Duration in minutes (optional)
+}
+
+// CreatePlanRequest represents plan creation request with node details
 type CreatePlanRequest struct {
-	Title       string `json:"title" binding:"required,min=1,max=150"`
-	Description string `json:"description" binding:"max=1000"`
-	Destination string `json:"destination" binding:"required,min=1,max=200"`
+	Title       string              `json:"title" binding:"required,min=1,max=150"`
+	Description string              `json:"description" binding:"max=1000"`
+	Destination string              `json:"destination" binding:"required,min=1,max=200"`
+	Nodes       []NodeDetailRequest `json:"nodes" binding:"required,min=1"` // Node details with plan-specific info
 }
 
 // UpdatePlanRequest represents plan update request
@@ -94,17 +117,17 @@ func (pc *PlanController) BrowsePlans(c *gin.Context) {
 	for i, plan := range plans {
 		avgRating, _ := pc.planService.GetAverageRating(c.Request.Context(), plan.ID)
 		planResponses[i] = PlanResponse{
-			ID:           plan.ID,
-			Title:        plan.Title,
-			Description:  plan.Description,
-			Destination:  plan.Destination,
-			AuthorID:     plan.AuthorID,
-			Status:       plan.Status,
+			ID:            plan.ID,
+			Title:         plan.Title,
+			Description:   plan.Description,
+			Destination:   plan.Destination,
+			AuthorID:      plan.AuthorID,
+			Status:        plan.Status,
 			RatingAverage: avgRating,
-			RatingCount:  plan.RatingCount,
-			CommentCount: plan.CommentCount,
-			CreatedAt:    plan.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:    plan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			RatingCount:   plan.RatingCount,
+			CommentCount:  plan.CommentCount,
+			CreatedAt:     plan.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:     plan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		}
 
 		// Get node count
@@ -171,17 +194,17 @@ func (pc *PlanController) SearchPlans(c *gin.Context) {
 	for i, plan := range plans {
 		avgRating, _ := pc.planService.GetAverageRating(c.Request.Context(), plan.ID)
 		planResponses[i] = PlanResponse{
-			ID:           plan.ID,
-			Title:        plan.Title,
-			Description:  plan.Description,
-			Destination:  plan.Destination,
-			AuthorID:     plan.AuthorID,
-			Status:       plan.Status,
+			ID:            plan.ID,
+			Title:         plan.Title,
+			Description:   plan.Description,
+			Destination:   plan.Destination,
+			AuthorID:      plan.AuthorID,
+			Status:        plan.Status,
 			RatingAverage: avgRating,
-			RatingCount:  plan.RatingCount,
-			CommentCount: plan.CommentCount,
-			CreatedAt:    plan.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:    plan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			RatingCount:   plan.RatingCount,
+			CommentCount:  plan.CommentCount,
+			CreatedAt:     plan.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:     plan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		}
 
 		// Get node count
@@ -202,12 +225,13 @@ func (pc *PlanController) SearchPlans(c *gin.Context) {
 	middleware.SuccessResponse(c, http.StatusOK, resp)
 }
 
-// GetPlanDetails handles GET /api/v1/plans/:id - get plan details// @Summary Get travel plan details
+// GetPlanDetails handles GET /api/v1/plans/:id - get plan details
+// @Summary Get travel plan details
 // @Description Retrieve detailed information about a published travel plan including nodes (public endpoint)
 // @Tags plans
 // @Produce json
 // @Param id path string true "Plan ID"
-// @Success 200 {object} map[string]interface{} "Plan details with nodes"
+// @Success 200 {object} map[string]interface{} "Plan details with enriched nodes"
 // @Failure 404 {object} middleware.SwaggerErrorResponse "Plan not found"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /plans/{id} [get]
@@ -230,8 +254,49 @@ func (pc *PlanController) GetPlanDetails(c *gin.Context) {
 	avgRating, _ := pc.planService.GetAverageRating(c.Request.Context(), plan.ID)
 	nodeCount, _ := pc.planService.CountPlanNodes(c.Request.Context(), plan.ID)
 
-	// Fetch nodes
-	nodes, _ := pc.planService.GetPlanNodes(c.Request.Context(), plan.ID)
+	// Fetch raw plan nodes
+	planNodes, _ := pc.planService.GetPlanNodes(c.Request.Context(), plan.ID)
+
+	// Enrich nodes with full node details (type, name, location, etc.)
+	enrichedNodes := make([]PlanNodeResponse, 0, len(planNodes))
+	for _, pn := range planNodes {
+		if pn == nil {
+			continue
+		}
+
+		// Fetch the full node with preloaded attraction/transition details
+		node, err := pc.nodeService.GetNodeByID(c.Request.Context(), pn.NodeID)
+		if err != nil || node == nil {
+			continue
+		}
+
+		// Build enriched response
+		enrichedNode := PlanNodeResponse{
+			ID:                  pn.ID,
+			SequencePosition:    pn.SequencePosition,
+			Type:                node.Type,
+			Description:         pn.Description,
+			EstimatedPriceCents: pn.EstimatedPriceCents,
+			DurationMinutes:     pn.DurationMinutes,
+		}
+
+		// Add type-specific details
+		if node.Type == "attraction" && node.AttractionNodeDetail != nil {
+			enrichedNode.Details = map[string]interface{}{
+				"name":        node.AttractionNodeDetail.Name,
+				"description": node.AttractionNodeDetail.Description,
+				"location":    node.AttractionNodeDetail.Location,
+				"category":    node.AttractionNodeDetail.Category,
+			}
+		} else if node.Type == "transition" && node.TransitionNodeDetail != nil {
+			enrichedNode.Details = map[string]interface{}{
+				"title":       node.TransitionNodeDetail.Title,
+				"description": node.TransitionNodeDetail.Description,
+			}
+		}
+
+		enrichedNodes = append(enrichedNodes, enrichedNode)
+	}
 
 	resp := gin.H{
 		"plan": PlanResponse{
@@ -248,23 +313,26 @@ func (pc *PlanController) GetPlanDetails(c *gin.Context) {
 			CreatedAt:     plan.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			UpdatedAt:     plan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		},
-		"nodes": nodes,
+		"nodes": enrichedNodes,
 	}
 
 	middleware.SuccessResponse(c, http.StatusOK, resp)
 }
 
-// CreatePlan handles POST /api/v1/plans - create new draft plan// @Summary Create a new travel plan
-// @Description Create a draft travel plan. User must be traveller or admin. Plan starts in draft status.
+// CreatePlan handles POST /api/v1/plans - create new plan with nodes and plan-specific details
+// @Summary Create a new travel plan with nodes and plan-specific information
+// @Description Create a travel plan with initial nodes and plan-dependent details (description, price, duration). User must be traveller or admin. Plan status determined by query parameter (draft or published).
 // @Tags plans
 // @Security Bearer
 // @Accept json
 // @Produce json
-// @Param request body CreatePlanRequest true "Plan creation request"
-// @Success 201 {object} map[string]interface{} "Plan created with ID and details"
-// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
+// @Param status query string false "Plan status (draft or published)" default(draft)
+// @Param request body CreatePlanRequest true "Plan creation request with nodes and plan-specific details"
+// @Success 201 {object} map[string]interface{} "Plan created with ID, details, and nodes added with plan-dependent information"
+// @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error or invalid nodes"
 // @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
 // @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller or admin can create plans"
+// @Failure 404 {object} middleware.SwaggerErrorResponse "One or more nodes not found"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /plans [post]
 func (pc *PlanController) CreatePlan(c *gin.Context) {
@@ -276,23 +344,17 @@ func (pc *PlanController) CreatePlan(c *gin.Context) {
 		return
 	}
 
-	// Get current user from context
+	// Get current user from context (claims are set by middleware)
 	userID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
 		middleware.AuthErrorResponse(c, "User not authenticated")
 		return
 	}
 
-	// Check if user has traveller or admin role
-	userRole, okRole := c.Get("userRole")
-	if !okRole {
-		middleware.ForbiddenErrorResponse(c, "Unable to verify user role")
-		return
-	}
-
-	userRoleStr, isString := userRole.(string)
-	if !isString || (userRoleStr != "traveller" && userRoleStr != "admin") {
-		middleware.ForbiddenErrorResponse(c, "Only traveller or admin users can create plans")
+	// Get status from query parameter (default: draft)
+	status := c.DefaultQuery("status", "draft")
+	if status != "draft" && status != "published" {
+		middleware.ValidationErrorResponse(c, "status must be 'draft' or 'published'", gin.H{"field": "status"})
 		return
 	}
 
@@ -302,10 +364,10 @@ func (pc *PlanController) CreatePlan(c *gin.Context) {
 		Description: strings.TrimSpace(req.Description),
 		Destination: strings.TrimSpace(req.Destination),
 		AuthorID:    userID,
-		Status:      models.TravelPlanStatusDraft.String(),
+		Status:      status,
 	}
 
-	// Call service
+	// Call service to create plan
 	planID, err := pc.planService.CreatePlan(c.Request.Context(), plan)
 	if err != nil {
 		if err == models.ErrValidation {
@@ -316,9 +378,67 @@ func (pc *PlanController) CreatePlan(c *gin.Context) {
 		return
 	}
 
+	// Add nodes to plan in sequence with plan-specific information
+	// Note: sequence_position is 1-indexed, so we pass i+1 (not i)
+	for i, nodeDetail := range req.Nodes {
+		// Call service to add node with plan-dependent information
+		_, err := pc.planService.AddNodeToPlanWithDetails(
+			c.Request.Context(),
+			planID,
+			nodeDetail.NodeID,
+			i+1,
+			nodeDetail.Description,
+			nodeDetail.EstimatedPriceCents,
+			nodeDetail.DurationMinutes,
+		)
+		if err != nil {
+			if err == models.ErrNotFound {
+				middleware.NotFoundErrorResponse(c, "One or more nodes not found")
+				return
+			}
+			if err == models.ErrValidation {
+				middleware.ValidationErrorResponse(c, "Invalid node or node sequence (no consecutive attractions allowed)", nil)
+				return
+			}
+			middleware.InternalErrorResponse(c, "Failed to add node to plan")
+			return
+		}
+	}
+
+	// Fetch complete plan with nodes
+	createdPlan, err := pc.planService.GetPlanByID(c.Request.Context(), planID)
+	if err != nil {
+		middleware.InternalErrorResponse(c, "Failed to fetch created plan")
+		return
+	}
+
+	if createdPlan == nil {
+		middleware.InternalErrorResponse(c, "Created plan not found")
+		return
+	}
+
+	// Get nodes for response
+	nodes, _ := pc.planService.GetPlanNodes(c.Request.Context(), planID)
+
+	// Get additional stats
+	avgRating, _ := pc.planService.GetAverageRating(c.Request.Context(), planID)
+
 	resp := gin.H{
-		"plan_id": planID,
-		"status":  models.TravelPlanStatusDraft.String(),
+		"plan": PlanResponse{
+			ID:            createdPlan.ID,
+			Title:         createdPlan.Title,
+			Description:   createdPlan.Description,
+			Destination:   createdPlan.Destination,
+			AuthorID:      createdPlan.AuthorID,
+			Status:        createdPlan.Status,
+			RatingAverage: avgRating,
+			RatingCount:   createdPlan.RatingCount,
+			CommentCount:  createdPlan.CommentCount,
+			NodeCount:     len(nodes),
+			CreatedAt:     createdPlan.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:     createdPlan.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+		"nodes": nodes,
 	}
 
 	middleware.SuccessResponse(c, http.StatusCreated, resp)

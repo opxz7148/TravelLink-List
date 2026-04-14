@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 
+	"tll-backend/internal/logger"
 	"tll-backend/internal/middleware"
 	"tll-backend/internal/models"
 	"tll-backend/internal/services"
@@ -212,6 +213,7 @@ func (ac *AdminController) DeleteNode(c *gin.Context) {
 // @Router /users/{id}/role [patch]
 func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 	userID := c.Param("id")
+	log := logger.GetLogger("AdminController")
 
 	var req struct {
 		Role string `json:"role" binding:"required"`
@@ -219,6 +221,7 @@ func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.ValidationError(c.Request.Context(), map[string]string{"request": "Invalid request format"})
 		middleware.ValidationErrorResponse(c, "invalid request", nil)
 		return
 	}
@@ -226,18 +229,21 @@ func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 	// Get current user (admin)
 	adminID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
+		log.AuthorizationError(c.Request.Context(), "", "Role update attempted without authentication")
 		middleware.AuthErrorResponse(c, "Admin not authenticated")
 		return
 	}
 
 	// Prevent self-modification
 	if adminID == userID {
+		log.AuthorizationError(c.Request.Context(), adminID, "Attempted to change own role")
 		middleware.ForbiddenErrorResponse(c, "You cannot change your own role")
 		return
 	}
 
 	// Validate role
 	if !models.CheckRole(models.UserRole(req.Role)) {
+		log.ValidationError(c.Request.Context(), map[string]string{"role": "Invalid role value"})
 		middleware.ValidationErrorResponse(c, "Invalid role", gin.H{"field": "role"})
 		return
 	}
@@ -254,9 +260,12 @@ func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 	}
 
 	if err != nil {
+		log.ServiceError(c.Request.Context(), "UserService", "UpdateUserRole", err, adminID)
 		middleware.InternalErrorResponse(c, "Failed to update user role")
 		return
 	}
+
+	log.SecurityEvent(c.Request.Context(), "USER_ROLE_CHANGED", adminID, "", "Changed role of user "+userID+" to "+req.Role)
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
 		"user_id": userID,
@@ -279,16 +288,19 @@ func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 // @Router /users/{id}/deactivate [patch]
 func (ac *AdminController) DeactivateUser(c *gin.Context) {
 	userID := c.Param("id")
+	log := logger.GetLogger("AdminController")
 
 	// Get current admin
 	adminID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
+		log.AuthorizationError(c.Request.Context(), "", "User deactivation attempted without authentication")
 		middleware.AuthErrorResponse(c, "Admin not authenticated")
 		return
 	}
 
 	// Prevent self-deactivation
 	if adminID == userID {
+		log.AuthorizationError(c.Request.Context(), adminID, "Attempted to deactivate own account")
 		middleware.ForbiddenErrorResponse(c, "You cannot deactivate yourself")
 		return
 	}
@@ -296,9 +308,12 @@ func (ac *AdminController) DeactivateUser(c *gin.Context) {
 	// Deactivate user via service (soft delete)
 	err := ac.userService.DeleteUser(c.Request.Context(), userID)
 	if err != nil {
+		log.ServiceError(c.Request.Context(), "UserService", "DeleteUser", err, adminID)
 		middleware.InternalErrorResponse(c, "Failed to deactivate user")
 		return
 	}
+
+	log.SecurityEvent(c.Request.Context(), "USER_DEACTIVATED", adminID, "", "Admin deactivated user "+userID)
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
 		"user_id": userID,

@@ -411,14 +411,14 @@ const docTemplate = `{
         },
         "/nodes": {
             "get": {
-                "description": "Get paginated list of approved nodes (attractions and/or transitions). Can filter by type. (public endpoint)",
+                "description": "Get paginated list of approved nodes (attractions and/or transitions) with embedded type-specific details. Each node includes complete information: base properties and either attraction or transition details populated. Can filter by type. (public endpoint)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "nodes"
                 ],
-                "summary": "List available nodes",
+                "summary": "List available nodes with embedded details",
                 "parameters": [
                     {
                         "type": "integer",
@@ -447,7 +447,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Nodes list with pagination",
+                        "description": "Array of nodes with embedded details and pagination metadata (total_items, total_pages, current_page, items_per_page)",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -592,14 +592,14 @@ const docTemplate = `{
         },
         "/nodes/{id}": {
             "get": {
-                "description": "Retrieve detailed information about a node (attraction or transition). Details include full information for the specific node type. (public endpoint)",
+                "description": "Retrieve complete node information including: base properties (id, type, created_by, is_approved, created_at), and embedded type-specific details. For attractions: name, category, location, description, contact_info, hours_of_operation. For transitions: title, mode, description, hours_of_operation, route_notes. The \"attraction\" field is populated for attraction nodes, \"transition\" for transition nodes (null otherwise). (public endpoint)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "nodes"
                 ],
-                "summary": "Get node details",
+                "summary": "Get node details with embedded type-specific information",
                 "parameters": [
                     {
                         "type": "string",
@@ -611,7 +611,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Node details",
+                        "description": "Complete node with embedded details. For attractions: {id, type, created_by, is_approved, attraction: {node_id, name, category, location, ...}, transition: null}. For transitions: similar with transition object populated.",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

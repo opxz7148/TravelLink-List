@@ -36,6 +36,7 @@ type NodeDetail interface {
 
 // Node represents a base point in a travel plan (attraction or transition)
 // Uses single-table inheritance with type discriminator
+// Embeds type-specific detail structures for convenient access
 type Node struct {
 	// id (UUID, primary key)
 	// Unique identifier for the node
@@ -60,6 +61,16 @@ type Node struct {
 	// updated_at (timestamp, UTC, nullable, updated only by admin approval)
 	// When the node status was last updated by admin
 	UpdatedAt *time.Time `gorm:"type:TIMESTAMP" json:"updated_at"`
+
+	// AttractionNodeDetail (optional pointer, embedded via foreign key)
+	// Contains attraction-specific details if type == "attraction"
+	// Use GORM Preload("AttractionNodeDetail") to load
+	AttractionNodeDetail *AttractionNodeDetail `gorm:"foreignKey:NodeID;references:ID" json:"attraction,omitempty"`
+
+	// TransitionNodeDetail (optional pointer, embedded via foreign key)
+	// Contains transition-specific details if type == "transition"
+	// Use GORM Preload("TransitionNodeDetail") to load
+	TransitionNodeDetail *TransitionNodeDetail `gorm:"foreignKey:NodeID;references:ID" json:"transition,omitempty"`
 }
 
 // TableName specifies the database table name for Node
@@ -67,11 +78,40 @@ func (Node) TableName() string {
 	return "nodes"
 }
 
+// GetDetail returns the type-specific detail (AttractionNodeDetail or TransitionNodeDetail)
+// based on the node's type discriminator. Returns nil if detail is not loaded or type is invalid.
+func (n *Node) GetDetail() interface{} {
+	switch NodeType(n.Type) {
+	case NodeTypeAttraction:
+		return n.AttractionNodeDetail
+	case NodeTypeTransition:
+		return n.TransitionNodeDetail
+	default:
+		return nil
+	}
+}
+
+// GetAttractionDetail returns the attraction detail if this is an attraction node, nil otherwise
+func (n *Node) GetAttractionDetail() *AttractionNodeDetail {
+	if n.Type == string(NodeTypeAttraction) {
+		return n.AttractionNodeDetail
+	}
+	return nil
+}
+
+// GetTransitionDetail returns the transition detail if this is a transition node, nil otherwise
+func (n *Node) GetTransitionDetail() *TransitionNodeDetail {
+	if n.Type == string(NodeTypeTransition) {
+		return n.TransitionNodeDetail
+	}
+	return nil
+}
+
 // AttractionNodeDetail contains details specific to attraction nodes
 type AttractionNodeDetail struct {
-	// id (UUID, primary key)
+	// node_id (UUID, primary key, foreign key)
 	// References the parent node
-	NodeID string `gorm:"primaryKey;type:TEXT;foreignKey:NodeID;references:nodes(id);constraint:OnDelete:CASCADE,OnUpdate:CASCADE;<-:create" json:"node_id"`
+	NodeID string `gorm:"primaryKey;type:TEXT" json:"node_id"`
 
 	// name (string, max 200 chars, required)
 	// Name of the attraction
@@ -99,9 +139,6 @@ type AttractionNodeDetail struct {
 
 	// created_at (timestamp, UTC, immutable)
 	CreatedAt time.Time `gorm:"autoCreateTime:milli" json:"created_at"`
-
-	// Node is the parent node that this detail belongs to
-	Node *Node `gorm:"foreignKey:NodeID;references:ID" json:"node,omitempty"`
 }
 
 // TableName specifies the database table name for AttractionNodeDetail
@@ -154,9 +191,9 @@ func ValidAttractionCategories() []string {
 
 // TransitionNodeDetail contains details specific to transition nodes
 type TransitionNodeDetail struct {
-	// id (UUID, primary key)
+	// node_id (UUID, primary key, foreign key)
 	// References the parent node
-	NodeID string `gorm:"primaryKey;type:TEXT;foreignKey:NodeID;references:nodes(id);constraint:OnDelete:CASCADE,OnUpdate:CASCADE;<-:create" json:"node_id"`
+	NodeID string `gorm:"primaryKey;type:TEXT" json:"node_id"`
 
 	// title (string, max 200 chars, required)
 	// Service/line identifier (e.g., "Bus Line 5", "M1 Train", "Walking")
@@ -183,9 +220,6 @@ type TransitionNodeDetail struct {
 
 	// created_at (timestamp, UTC, immutable)
 	CreatedAt time.Time `gorm:"autoCreateTime:milli" json:"created_at"`
-
-	// Node is the parent node that this detail belongs to
-	Node *Node `gorm:"foreignKey:NodeID;references:ID" json:"node,omitempty"`
 }
 
 // TableName specifies the database table name for TransitionNodeDetail

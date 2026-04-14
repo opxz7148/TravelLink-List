@@ -15,20 +15,46 @@
     </div>
 
     <div class="flex flex-col gap-2">
-      <h3 v-if="node.type === 'attraction'" class="m-0 text-base font-semibold text-gray-800">
-        {{ (node as any).name }}
-      </h3>
-      <p v-if="node.type === 'attraction'" class="m-0 text-xs text-gray-600">
-        📍 {{ (node as any).location }}
-      </p>
-      <p v-if="node.type === 'attraction'" class="m-0 text-sm text-gray-700 leading-relaxed">
-        {{ (node as any).description }}
-      </p>
+      <!-- Attraction Details -->
+      <template v-if="node.type === 'attraction' && node.attraction">
+        <h3 class="m-0 text-base font-semibold text-gray-800">
+          {{ node.attraction.name }}
+        </h3>
+        <p class="m-0 text-xs text-gray-600">
+          📍 {{ node.attraction.location }}
+        </p>
+        <p v-if="node.attraction.category" class="m-0 text-xs text-gray-500 capitalize">
+          Category: {{ node.attraction.category.replace('_', ' ') }}
+        </p>
+        <p v-if="node.attraction.description" class="m-0 text-sm text-gray-700 leading-relaxed">
+          {{ node.attraction.description }}
+        </p>
+        <p v-if="node.attraction.contact_info" class="m-0 text-xs text-gray-500">
+          📞 {{ node.attraction.contact_info }}
+        </p>
+        <p v-if="node.attraction.hours_of_operation" class="m-0 text-xs text-gray-500">
+          ⏰ {{ node.attraction.hours_of_operation }}
+        </p>
+      </template>
 
-      <div v-if="node.type === 'transition'" class="flex flex-col gap-1 text-sm text-gray-600">
-        <span>⏱️ {{ (node as any).duration_minutes }} min</span>
-        <span class="text-gray-500 italic"> {{ (node as any).description }}</span>
-      </div>
+      <!-- Transition Details -->
+      <template v-if="node.type === 'transition' && node.transition">
+        <h3 class="m-0 text-base font-semibold text-gray-800">
+          {{ node.transition.title }}
+        </h3>
+        <p class="m-0 text-xs text-gray-600 capitalize">
+          Mode: {{ node.transition.mode.replace('_', ' ') }}
+        </p>
+        <p v-if="node.transition.description" class="m-0 text-sm text-gray-700 leading-relaxed">
+          {{ node.transition.description }}
+        </p>
+        <p v-if="node.transition.hours_of_operation" class="m-0 text-xs text-gray-500">
+          ⏰ {{ node.transition.hours_of_operation }}
+        </p>
+        <p v-if="node.transition.route_notes" class="m-0 text-xs text-gray-500 italic">
+          📍 {{ node.transition.route_notes }}
+        </p>
+      </template>
     </div>
 
     <div v-if="showActions" class="flex justify-end gap-2">

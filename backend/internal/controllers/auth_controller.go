@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"tll-backend/internal/logger"
 	"tll-backend/internal/middleware"
 	"tll-backend/internal/models"
 	"tll-backend/internal/services"
@@ -116,20 +117,25 @@ func (ac *AuthController) Register(c *gin.Context) {
 	}
 
 	// Call service to register user
+	log := logger.GetLogger("AuthController")
 	user, tokenResp, err := ac.userService.Register(c.Request.Context(), req.Email, req.Username, req.Password, req.DisplayName)
 	if err != nil {
 		if err == models.ErrDuplicateEmail {
+			log.ValidationError(c.Request.Context(), map[string]string{"email": "Email already registered"})
 			middleware.ValidationErrorResponse(c, "Email already registered", gin.H{"field": "email"})
 			return
 		}
 		if err == models.ErrDuplicateUsername {
+			log.ValidationError(c.Request.Context(), map[string]string{"username": "Username already taken"})
 			middleware.ValidationErrorResponse(c, "Username already taken", gin.H{"field": "username"})
 			return
 		}
 		if err == models.ErrValidation {
+			log.ValidationError(c.Request.Context(), map[string]string{"password": "Does not meet security requirements"})
 			middleware.ValidationErrorResponse(c, "Password does not meet security requirements", gin.H{"field": "password"})
 			return
 		}
+		log.ServiceError(c.Request.Context(), "UserService", "Register", err, "")
 		middleware.InternalErrorResponse(c, "Failed to register user")
 		return
 	}
@@ -149,6 +155,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 		ExpiresIn:   int(tokenResp.ExpiresIn),
 	}
 
+	log.UserRegistration(c.Request.Context(), user.ID, user.Email, user.Username)
 	middleware.SuccessResponse(c, 201, resp)
 }
 
@@ -177,20 +184,25 @@ func (ac *AuthController) Login(c *gin.Context) {
 	req.Email = strings.TrimSpace(req.Email)
 
 	// Call service to authenticate user
+	log := logger.GetLogger("AuthController")
 	user, tokenResp, err := ac.userService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		if err == models.ErrInvalidCredentials {
+			log.AuthenticationError(c.Request.Context(), req.Email, "Invalid credentials provided")
 			middleware.AuthErrorResponseWithCode(c, "INVALID_CREDENTIALS", "Email or password is incorrect")
 			return
 		}
 		if err == models.ErrUserInactive {
+			log.AuthenticationError(c.Request.Context(), req.Email, "Account inactive")
 			middleware.AuthErrorResponseWithCode(c, "ACCOUNT_INACTIVE", "Your account has been deactivated by an administrator")
 			return
 		}
 		if err == models.ErrNotFound {
+			log.AuthenticationError(c.Request.Context(), req.Email, "User not found")
 			middleware.AuthErrorResponseWithCode(c, "INVALID_CREDENTIALS", "Email or password is incorrect")
 			return
 		}
+		log.ServiceError(c.Request.Context(), "UserService", "Login", err, "")
 		middleware.InternalErrorResponse(c, "Failed to login")
 		return
 	}
@@ -216,6 +228,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 		ExpiresIn:   int(tokenResp.ExpiresIn),
 	}
 
+	log.UserAuthentication(c.Request.Context(), user.ID, user.Email)
 	middleware.SuccessResponse(c, 200, resp)
 }
 
@@ -229,8 +242,10 @@ func (ac *AuthController) Login(c *gin.Context) {
 // @Router /auth/logout [post]
 func (ac *AuthController) Logout(c *gin.Context) {
 	// Get authenticated user (just to verify auth)
-	_, ok := utilities.GetUserIDFromContext(c)
+	userID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
+		log := logger.GetLogger("AuthController")
+		log.AuthorizationError(c.Request.Context(), "", "Logout attempted without authentication")
 		middleware.AuthErrorResponse(c, "User not authenticated")
 		return
 	}
@@ -238,6 +253,7 @@ func (ac *AuthController) Logout(c *gin.Context) {
 	// Note: In a stateless JWT system, logout is client-side (discard token)
 	// If implementing token blacklisting, add logic here
 	// For now, just return 204 No Content to signal success
-
+	log := logger.GetLogger("AuthController")
+	log.UserLogout(c.Request.Context(), userID)
 	c.Status(204) // No Content response
 }

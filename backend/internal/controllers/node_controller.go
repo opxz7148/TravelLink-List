@@ -45,14 +45,14 @@ type CreateTransitionRequest struct {
 }
 
 // ListNodes handles GET /api/v1/nodes - list available nodes
-// @Summary List available nodes
-// @Description Get paginated list of approved nodes (attractions and/or transitions). Can filter by type. (public endpoint)
+// @Summary List available nodes with embedded details
+// @Description Get paginated list of approved nodes (attractions and/or transitions) with embedded type-specific details. Each node includes complete information: base properties and either attraction or transition details populated. Can filter by type. (public endpoint)
 // @Tags nodes
 // @Produce json
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Results per page" default(50)
 // @Param type query string false "Node type filter" Enums(attraction,transition)
-// @Success 200 {object} map[string]interface{} "Nodes list with pagination"
+// @Success 200 {object} map[string]interface{} "Array of nodes with embedded details and pagination metadata (total_items, total_pages, current_page, items_per_page)"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /nodes [get]
 func (nc *NodeController) ListNodes(c *gin.Context) {
@@ -101,12 +101,12 @@ func (nc *NodeController) ListNodes(c *gin.Context) {
 }
 
 // GetNodeDetail handles GET /api/v1/nodes/:id - get node details
-// @Summary Get node details
-// @Description Retrieve detailed information about a node (attraction or transition). Details include full information for the specific node type. (public endpoint)
+// @Summary Get node details with embedded type-specific information
+// @Description Retrieve complete node information including: base properties (id, type, created_by, is_approved, created_at), and embedded type-specific details. For attractions: name, category, location, description, contact_info, hours_of_operation. For transitions: title, mode, description, hours_of_operation, route_notes. The "attraction" field is populated for attraction nodes, "transition" for transition nodes (null otherwise). (public endpoint)
 // @Tags nodes
 // @Produce json
 // @Param id path string true "Node ID"
-// @Success 200 {object} map[string]interface{} "Node details"
+// @Success 200 {object} map[string]interface{} "Complete node with embedded details. For attractions: {id, type, created_by, is_approved, attraction: {node_id, name, category, location, ...}, transition: null}. For transitions: similar with transition object populated."
 // @Failure 404 {object} middleware.SwaggerErrorResponse "Node not found"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /nodes/{id} [get]

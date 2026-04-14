@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"tll-backend/internal/logger"
 	"tll-backend/internal/middleware"
 	"tll-backend/internal/models"
 	"tll-backend/internal/services"
@@ -111,9 +112,11 @@ func (uc *UserController) GetProfile(c *gin.Context) {
 func (uc *UserController) UpdateProfile(c *gin.Context) {
 	userID := c.Param("id")
 	var req UpdateProfileRequest
+	log := logger.GetLogger("UserController")
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.ValidationError(c.Request.Context(), map[string]string{"request": "Invalid request format"})
 		middleware.ValidationErrorResponse(c, "invalid request", nil)
 		return
 	}
@@ -121,6 +124,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 	// Get authenticated user
 	authUserID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
+		log.AuthorizationError(c.Request.Context(), "", "Attempted profile update without authentication")
 		middleware.AuthErrorResponse(c, "User not authenticated")
 		return
 	}
@@ -129,6 +133,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 	userRole, _ := utilities.GetUserRoleFromContext(c)
 	isAdmin := userRole == "admin"
 	if authUserID != userID && !isAdmin {
+		log.AuthorizationError(c.Request.Context(), authUserID, "Attempted to update another user's profile without admin role")
 		middleware.ForbiddenErrorResponse(c, "You can only update your own profile")
 		return
 	}
@@ -141,13 +146,16 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 	user, err := uc.userService.UpdateProfile(c.Request.Context(), userID, displayName, bio, "")
 	if err != nil {
 		if err == models.ErrValidation {
+			log.ValidationError(c.Request.Context(), map[string]string{"profile": "Invalid profile data"})
 			middleware.ValidationErrorResponse(c, "Invalid profile data", nil)
 			return
 		}
 		if err == models.ErrNotFound {
+			log.Info(c.Request.Context(), "Profile update attempted on non-existent user", logger.LogAttributes{UserID: userID})
 			middleware.NotFoundErrorResponse(c, "User not found")
 			return
 		}
+		log.ServiceError(c.Request.Context(), "UserService", "UpdateProfile", err, authUserID)
 		middleware.InternalErrorResponse(c, "Failed to update profile")
 		return
 	}
@@ -164,6 +172,8 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt: user.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
+
+	log.Info(c.Request.Context(), "Profile updated successfully", logger.LogAttributes{UserID: authUserID, Details: "Updated display_name and bio"})
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
 		"user":    profileResp,
@@ -190,9 +200,11 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 func (uc *UserController) ChangePassword(c *gin.Context) {
 	userID := c.Param("id")
 	var req ChangePasswordRequest
+	log := logger.GetLogger("UserController")
 
 	// Validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.ValidationError(c.Request.Context(), map[string]string{"request": "Invalid request format"})
 		middleware.ValidationErrorResponse(c, "invalid request", nil)
 		return
 	}
@@ -200,12 +212,14 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 	// Get authenticated user
 	authUserID, ok := utilities.GetUserIDFromContext(c)
 	if !ok {
+		log.AuthorizationError(c.Request.Context(), "", "Attempted password change without authentication")
 		middleware.AuthErrorResponse(c, "User not authenticated")
 		return
 	}
 
 	// Only allow users to change their own password
 	if authUserID != userID {
+		log.AuthorizationError(c.Request.Context(), authUserID, "Attempted to change another user's password")
 		middleware.ForbiddenErrorResponse(c, "You can only change your own password")
 		return
 	}
@@ -214,20 +228,26 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 	err := uc.userService.ChangePassword(c.Request.Context(), userID, req.OldPassword, req.NewPassword)
 	if err != nil {
 		if err == models.ErrInvalidCredentials {
+			log.AuthenticationError(c.Request.Context(), "", "Invalid current password provided")
 			middleware.ValidationErrorResponse(c, "Current password is incorrect", gin.H{"field": "old_password"})
 			return
 		}
 		if err == models.ErrValidation {
+			log.ValidationError(c.Request.Context(), map[string]string{"new_password": "Does not meet security requirements"})
 			middleware.ValidationErrorResponse(c, "New password does not meet security requirements", gin.H{"field": "new_password"})
 			return
 		}
 		if err == models.ErrNotFound {
+			log.Info(c.Request.Context(), "Password change attempted on non-existent user", logger.LogAttributes{UserID: userID})
 			middleware.NotFoundErrorResponse(c, "User not found")
 			return
 		}
+		log.ServiceError(c.Request.Context(), "UserService", "ChangePassword", err, authUserID)
 		middleware.InternalErrorResponse(c, "Failed to change password")
 		return
 	}
+
+	log.SecurityEvent(c.Request.Context(), "PASSWORD_CHANGED", authUserID, "", "User changed their password")
 
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
 		"message": "Password changed successfully",

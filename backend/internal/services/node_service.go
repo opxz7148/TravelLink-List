@@ -21,9 +21,9 @@ type NodeService interface {
 	// Returns the created node ID on success
 	CreateTransitionNode(ctx context.Context, createdBy string, detail *models.TransitionNodeDetail) (string, error)
 
-	// GetNodeByID retrieves a node by its ID with type-specific details
-	// Returns the detail node which contains the embedded base node
-	GetNodeByID(ctx context.Context, nodeID string) (interface{}, error)
+	// GetNodeByID retrieves a node by its ID with embedded type-specific details
+	// Returns a Node with AttractionNodeDetail or TransitionNodeDetail populated based on type
+	GetNodeByID(ctx context.Context, nodeID string) (*models.Node, error)
 
 	// ListApprovedNodes retrieves all approved nodes (both attractions and transitions) with pagination
 	// Used for public browsing and node selection in plan creation
@@ -180,19 +180,19 @@ func (s *RelationalNodeService) CreateTransitionNode(ctx context.Context, create
 	return nodeID, nil
 }
 
-// GetNodeByID retrieves a node and its type-specific details
-// Returns the detail node which contains the embedded base node
-func (s *RelationalNodeService) GetNodeByID(ctx context.Context, nodeID string) (interface{}, error) {
+// GetNodeByID retrieves a node and its embedded type-specific details
+// Returns a Node with AttractionNodeDetail or TransitionNodeDetail populated
+func (s *RelationalNodeService) GetNodeByID(ctx context.Context, nodeID string) (*models.Node, error) {
 	if nodeID == "" {
 		return nil, fmt.Errorf("nodeID cannot be empty")
 	}
 
-	detail, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node: %w", err)
 	}
 
-	return detail, nil
+	return node, nil
 }
 
 // ListApprovedNodes retrieves all approved nodes (both types) with pagination

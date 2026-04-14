@@ -17,9 +17,9 @@ type NodeRepository interface {
 	// Returns the created node ID on success
 	CreateTransitionAndSave(ctx context.Context, node *models.Node, detail *models.TransitionNodeDetail) (string, error)
 
-	// GetNodeByID retrieves a node by its ID with its type-specific details
-	// Returns the detail node which contains the embedded base node
-	GetNodeByID(ctx context.Context, nodeID string) (interface{}, error)
+	// GetNodeByID retrieves a node by its ID with embedded type-specific details
+	// Returns a Node with AttractionNodeDetail or TransitionNodeDetail populated based on type
+	GetNodeByID(ctx context.Context, nodeID string) (*models.Node, error)
 
 	// GetAttractionByID retrieves an attraction node with its details
 	// Returns nil if node doesn't exist or is not an attraction

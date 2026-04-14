@@ -64,66 +64,55 @@ func (r *RelationalNodeRepository) CreateTransitionAndSave(ctx context.Context, 
 	return r.CreateNodeAndSave(ctx, node, detail)
 }
 
-// GetNodeByID retrieves a node by ID with its type-specific details
-// Returns the detail node which contains the embedded base node
-func (r *RelationalNodeRepository) GetNodeByID(ctx context.Context, nodeID string) (interface{}, error) {
+// GetNodeByID retrieves a node by ID with its embedded type-specific details
+// Preloads both AttractionNodeDetail and TransitionNodeDetail (only one will be populated)
+func (r *RelationalNodeRepository) GetNodeByID(ctx context.Context, nodeID string) (*models.Node, error) {
 	var node models.Node
 
-	// Get the node first
-	if err := r.getDB().WithContext(ctx).First(&node, "id = ?", nodeID).Error; err != nil {
+	// Load node with both possible detail relationships
+	if err := r.getDB().WithContext(ctx).
+		Preload("AttractionNodeDetail").
+		Preload("TransitionNodeDetail").
+		First(&node, "id = ?", nodeID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
 
-	// Get type-specific details with embedded node
-	if node.Type == string(models.NodeTypeAttraction) {
-		var detail models.AttractionNodeDetail
-		if err := r.getDB().WithContext(ctx).Preload("Node").First(&detail, "node_id = ?", nodeID).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return nil, nil
-			}
-			return nil, err
-		}
-		return &detail, nil
-	} else if node.Type == string(models.NodeTypeTransition) {
-		var detail models.TransitionNodeDetail
-		if err := r.getDB().WithContext(ctx).Preload("Node").First(&detail, "node_id = ?", nodeID).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return nil, nil
-			}
-			return nil, err
-		}
-		return &detail, nil
-	}
-
-	return nil, nil
+	return &node, nil
 }
 
 // GetNodeDetailByID retrieves a node with its type-specific details in a generic way
-// Accepts any NodeDetail implementation (AttractionNodeDetail or TransitionNodeDetail)
+// Uses embedded details via Preload - optimized for single query
 func (r *RelationalNodeRepository) GetNodeDetailByID(ctx context.Context, nodeID string, detail models.NodeDetail) (*models.Node, models.NodeDetail, error) {
 	var node models.Node
 	nodeType := detail.GetNodeType()
 
-	// Get the node with type checking
-	if err := r.getDB().WithContext(ctx).First(&node, "id = ? AND type = ?", nodeID, nodeType).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil, nil
+	// Get the node with type checking and preload appropriate detail
+	if nodeType == models.NodeTypeAttraction {
+		if err := r.getDB().WithContext(ctx).
+			Preload("AttractionNodeDetail").
+			First(&node, "id = ? AND type = ?", nodeID, nodeType).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, nil, nil
+			}
+			return nil, nil, err
 		}
-		return nil, nil, err
+		return &node, node.AttractionNodeDetail, nil
+	} else if nodeType == models.NodeTypeTransition {
+		if err := r.getDB().WithContext(ctx).
+			Preload("TransitionNodeDetail").
+			First(&node, "id = ? AND type = ?", nodeID, nodeType).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, nil, nil
+			}
+			return nil, nil, err
+		}
+		return &node, node.TransitionNodeDetail, nil
 	}
 
-	// Get the detail
-	if err := r.getDB().WithContext(ctx).First(&detail, "node_id = ?", nodeID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return &node, nil, nil
-		}
-		return nil, nil, err
-	}
-
-	return &node, detail, nil
+	return nil, nil, nil
 }
 
 // GetAttractionByID retrieves an attraction node with its details (delegates to GetNodeDetailByID)
@@ -153,11 +142,12 @@ func (r *RelationalNodeRepository) GetTransitionByID(ctx context.Context, nodeID
 }
 
 // ListApprovedAttractions retrieves all approved attractions with optional category filter and pagination
+// Preloads embedded AttractionNodeDetail for efficient single query
 func (r *RelationalNodeRepository) ListApprovedAttractions(ctx context.Context, category string, offset int, limit int) ([]*models.Node, []*models.AttractionNodeDetail, error) {
 	var nodes []*models.Node
-	var details []*models.AttractionNodeDetail
 
 	query := r.getDB().WithContext(ctx).
+		Preload("AttractionNodeDetail").
 		Where("type = ? AND is_approved = ?", models.NodeTypeAttraction, true).
 		Order("created_at DESC")
 
@@ -173,28 +163,29 @@ func (r *RelationalNodeRepository) ListApprovedAttractions(ctx context.Context, 
 		return nil, nil, err
 	}
 
-	// Get all details
+	// Filter by category and build details list
+	var details []*models.AttractionNodeDetail
+	var filteredNodes []*models.Node
+
 	for _, node := range nodes {
-		var detail models.AttractionNodeDetail
-		if err := r.getDB().WithContext(ctx).First(&detail, "node_id = ?", node.ID).Error; err == nil {
-			if category == "" || detail.Category == category {
-				details = append(details, &detail)
-			} else {
-				// Remove from nodes if category doesn't match
-				nodes = removeNodeByID(nodes, node.ID)
+		if node.AttractionNodeDetail != nil {
+			if category == "" || node.AttractionNodeDetail.Category == category {
+				details = append(details, node.AttractionNodeDetail)
+				filteredNodes = append(filteredNodes, node)
 			}
 		}
 	}
 
-	return nodes, details, nil
+	return filteredNodes, details, nil
 }
 
 // ListApprovedTransitions retrieves all approved transitions with optional mode filter and pagination
+// Preloads embedded TransitionNodeDetail for efficient single query
 func (r *RelationalNodeRepository) ListApprovedTransitions(ctx context.Context, mode string, offset int, limit int) ([]*models.Node, []*models.TransitionNodeDetail, error) {
 	var nodes []*models.Node
-	var details []*models.TransitionNodeDetail
 
 	query := r.getDB().WithContext(ctx).
+		Preload("TransitionNodeDetail").
 		Where("type = ? AND is_approved = ?", models.NodeTypeTransition, true).
 		Order("created_at DESC")
 
@@ -210,30 +201,35 @@ func (r *RelationalNodeRepository) ListApprovedTransitions(ctx context.Context, 
 		return nil, nil, err
 	}
 
-	// Get all details
+	// Filter by mode and build details list
+	var details []*models.TransitionNodeDetail
+	var filteredNodes []*models.Node
+
 	for _, node := range nodes {
-		var detail models.TransitionNodeDetail
-		if err := r.getDB().WithContext(ctx).First(&detail, "node_id = ?", node.ID).Error; err == nil {
-			if mode == "" || detail.Mode == mode {
-				details = append(details, &detail)
-			} else {
-				// Remove from nodes if mode doesn't match
-				nodes = removeNodeByID(nodes, node.ID)
+		if node.TransitionNodeDetail != nil {
+			if mode == "" || node.TransitionNodeDetail.Mode == mode {
+				details = append(details, node.TransitionNodeDetail)
+				filteredNodes = append(filteredNodes, node)
 			}
 		}
 	}
 
-	return nodes, details, nil
+	return filteredNodes, details, nil
 }
 
 // SearchAttractions searches for attractions by name (approved only) with pagination
-func (r *RelationalNodeRepository) SearchAttractions(ctx context.Context, query string, offset int, limit int) ([]*models.Node, []*models.AttractionNodeDetail, error) {
-	var details []*models.AttractionNodeDetail
+// Uses embedded AttractionNodeDetail preload for efficient joins
+func (r *RelationalNodeRepository) SearchAttractions(ctx context.Context, searchQuery string, offset int, limit int) ([]*models.Node, []*models.AttractionNodeDetail, error) {
 	var nodes []*models.Node
 
-	// Search in details table first (by name)
-	searchPattern := "%" + query + "%"
-	q := r.getDB().WithContext(ctx).Where("name LIKE ?", searchPattern).Order("created_at DESC")
+	// Search by matching attraction name via embedded detail relationship
+	searchPattern := "%" + searchQuery + "%"
+	q := r.getDB().WithContext(ctx).
+		Joins("JOIN attraction_node_details ON nodes.id = attraction_node_details.node_id").
+		Preload("AttractionNodeDetail").
+		Where("nodes.type = ? AND nodes.is_approved = ? AND attraction_node_details.name LIKE ?",
+			models.NodeTypeAttraction, true, searchPattern).
+		Order("nodes.created_at DESC")
 
 	if offset > 0 {
 		q = q.Offset(offset)
@@ -243,16 +239,15 @@ func (r *RelationalNodeRepository) SearchAttractions(ctx context.Context, query 
 		q = q.Limit(limit)
 	}
 
-	if err := q.Find(&details).Error; err != nil {
+	if err := q.Find(&nodes).Error; err != nil {
 		return nil, nil, err
 	}
 
-	// Get corresponding nodes and filter by approved
-	for _, detail := range details {
-		var node models.Node
-		if err := r.getDB().WithContext(ctx).
-			First(&node, "id = ? AND type = ? AND is_approved = ?", detail.NodeID, models.NodeTypeAttraction, true).Error; err == nil {
-			nodes = append(nodes, &node)
+	// Build details list from embedded data
+	var details []*models.AttractionNodeDetail
+	for _, node := range nodes {
+		if node.AttractionNodeDetail != nil {
+			details = append(details, node.AttractionNodeDetail)
 		}
 	}
 
@@ -260,10 +255,13 @@ func (r *RelationalNodeRepository) SearchAttractions(ctx context.Context, query 
 }
 
 // ListNodesByCreator retrieves all nodes created by a user with pagination
+// Preloads all detail types for convenient access
 func (r *RelationalNodeRepository) ListNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error) {
 	var nodes []*models.Node
 
 	query := r.getDB().WithContext(ctx).
+		Preload("AttractionNodeDetail").
+		Preload("TransitionNodeDetail").
 		Where("created_by = ?", creatorID).
 		Order("created_at DESC")
 

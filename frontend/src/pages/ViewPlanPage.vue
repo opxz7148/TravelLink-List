@@ -23,13 +23,55 @@
       <div class="flex flex-col gap-3">
         <div v-for="(node, index) in plan.nodes" :key="node.id" class="border border-gray-200 p-4 rounded-lg bg-white hover:shadow-md transition-all">
           <div class="flex items-start gap-3">
-            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+            <!-- Position Badge -->
+            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+              :class="node.type === 'attraction' ? 'bg-blue-500' : 'bg-green-500'">
               {{ index + 1 }}
             </div>
+            
+            <!-- Node Details -->
             <div class="flex-1">
-              <h3 class="font-semibold text-gray-900">{{ node.details?.name || node.type }}</h3>
-              <p class="text-sm text-gray-600 mt-1">{{ node.details?.description }}</p>
-              <p class="text-xs text-gray-500 mt-2">Type: {{ node.type }}</p>
+              <!-- Title and Type -->
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="font-semibold text-gray-900 text-lg">{{ node.details?.name || node.details?.title || 'Unnamed Node' }}</h3>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <span class="inline-block px-2 py-1 rounded-full"
+                      :class="node.type === 'attraction' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'">
+                      {{ node.type === 'attraction' ? '📍 Attraction' : '🚗 Transition' }}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              
+              <!-- Basic Description -->
+              <p v-if="node.details?.description" class="text-sm text-gray-600 mt-2">{{ node.details.description }}</p>
+              
+              <!-- Node-Specific Information -->
+              <div class="mt-3 space-y-1 text-sm">
+                <!-- Attraction-specific info -->
+                <div v-if="node.type === 'attraction'">
+                  <p v-if="node.details?.location" class="text-gray-500">
+                    <span class="font-medium">📍 Location:</span> {{ node.details.location }}
+                  </p>
+                  <p v-if="node.details?.category" class="text-gray-500 capitalize">
+                    <span class="font-medium">🏷️ Category:</span> {{ node.details.category.replace(/_/g, ' ') }}
+                  </p>
+                </div>
+                
+                <!-- Plan-specific customization info -->
+                <div v-if="node.duration_minutes || node.estimated_price_cents || node.description" class="border-t border-gray-200 pt-2 mt-2">
+                  <p v-if="node.duration_minutes" class="text-gray-600">
+                    <span class="font-medium">⏱️ Duration:</span> {{ node.duration_minutes }} min
+                  </p>
+                  <p v-if="node.estimated_price_cents" class="text-gray-600">
+                    <span class="font-medium">💰 Price:</span> ${{ (node.estimated_price_cents / 100).toFixed(2) }}
+                  </p>
+                  <p v-if="node.description" class="text-gray-600 italic">
+                    <span class="font-medium">📝 Plan Note:</span> {{ node.description }}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

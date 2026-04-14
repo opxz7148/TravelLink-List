@@ -67,7 +67,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Initialize controllers
 	authController := controllers.NewAuthController(userService, jwtService)
 	userController := controllers.NewUserController(userService)
-	planController := controllers.NewPlanController(planService)
+	planController := controllers.NewPlanController(planService, nodeService)
 	nodeController := controllers.NewNodeController(nodeService)
 	commentController := controllers.NewCommentController(planService, commentService)
 	ratingController := controllers.NewRatingController(planService, ratingService)
@@ -131,7 +131,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}
 
 	// Protected node creation (traveller+)
-	nodeCreationGroup := r.Group("/api/v1/nodes", middleware.RequireAuth(jwtService))
+	nodeCreationGroup := r.Group("/api/v1/nodes", middleware.RequireAuth(jwtService), middleware.RequireTravellerOrAdmin())
 	{
 		// Create new attraction node (pending admin approval)
 		nodeCreationGroup.POST("/attraction", nodeController.CreateAttractionNode)
@@ -164,10 +164,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}
 
 	// Protected plan operations (authenticated users)
-	planProtectedGroup := r.Group("/api/v1/plans", middleware.RequireAuth(jwtService))
+	planCreationGroup := r.Group("/api/v1/plans", middleware.RequireAuth(jwtService), middleware.RequireTravellerOrAdmin())
 	{
 		// Create draft plan (traveller+)
-		planProtectedGroup.POST("", planController.CreatePlan)
+		planCreationGroup.POST("", planController.CreatePlan)
+	}
+
+	// Protected plan operations (plan owner or admin)
+	planProtectedGroup := r.Group("/api/v1/plans", middleware.RequireAuth(jwtService))
+	{
 
 		// Publish plan (plan owner or admin)
 		planProtectedGroup.PATCH("/:id/publish", planController.PublishPlan)

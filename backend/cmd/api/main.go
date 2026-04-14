@@ -31,6 +31,7 @@ import (
 	"time"
 
 	_ "tll-backend/docs"
+	"tll-backend/internal/logger"
 	"tll-backend/internal/server"
 )
 
@@ -61,15 +62,22 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 
 func main() {
 
-	server := server.NewServer()
+	// Initialize logger
+	err := logger.InitLogger("./logs/app.log")
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.CloseLogger()
+
+	httpServer := server.NewServer()
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
 
 	// Run graceful shutdown in a separate goroutine
-	go gracefulShutdown(server, done)
+	go gracefulShutdown(httpServer, done)
 
-	err := server.ListenAndServe()
+	err = httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}

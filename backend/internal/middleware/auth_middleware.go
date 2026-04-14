@@ -102,3 +102,15 @@ func RequireRole(allowedRoles ...models.UserRole) gin.HandlerFunc {
 func RequireAdmin() gin.HandlerFunc {
 	return RequireRole(models.RoleAdmin)
 }
+
+// RequireTraveller is a middleware that ensures the user is at least a traveller
+// Must be used after RequireAuth middleware
+func RequireTraveller() gin.HandlerFunc {
+	return RequireRole(models.RoleTraveller)
+}
+
+// RequireTravellerOrAdmin is a middleware that ensures the user is a traveller or admin
+// Must be used after RequireAuth middleware
+func RequireTravellerOrAdmin() gin.HandlerFunc {
+	return RequireRole(models.RoleTraveller, models.RoleAdmin)
+}
