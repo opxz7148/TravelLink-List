@@ -232,11 +232,30 @@ No manual database setup needed.
 
 ### Step 5: Environment Configuration
 
-Backend environment variables are optional. Default configuration:
+Backend environment variables are configured via `.env` file. A template file is provided:
 
-- API Port: 8000
-- Database Path: backend/travellink.db
-- JWT Secret: generated at startup if not specified
+```bash
+cd backend
+
+# Copy the example environment file
+cp .env.example .env
+```
+
+The `.env` file includes:
+
+```bash
+PORT=8000
+APP_ENV=local
+DB_TYPE=sqlite3
+DB_PATH=data/travellink.db
+JWT_SECRET=your_jwt_secret_key
+FRONTEND_URL="http://localhost:5173"
+```
+
+**⚠️ Security Warning:**
+- `.env` is in `.gitignore` and will NOT be committed to GitHub
+- Never push `.env` files with real secrets to version control
+- `.env.example` is committed and provides a template for other developers
 
 ## Running the System
 
