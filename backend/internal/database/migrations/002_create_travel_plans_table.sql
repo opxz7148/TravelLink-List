@@ -1,6 +1,6 @@
 -- Migration: Create travel_plans table
 -- Represents a complete travel itinerary as a linked list of nodes
--- Status can be draft (private), published (public), or suspended (admin action)
+-- Status can be draft (private), published (public), suspended (admin action), or deleted (user/admin action)
 
 CREATE TABLE IF NOT EXISTS travel_plans (
     -- Primary key: UUID string
@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS travel_plans (
     -- Author ID: foreign key to users table, denormalized for query efficiency
     author_id TEXT NOT NULL,
     
-    -- Status: enum value (draft|published|suspended), default: draft
+    -- Status: enum value (draft|published|suspended|deleted), default: draft
     -- Controls visibility and lifecycle of the plan
-    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published', 'suspended')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published', 'suspended', 'deleted')),
     
     -- Rating count: denormalized count for fast retrieval
     -- Number of ratings received

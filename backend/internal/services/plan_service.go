@@ -118,6 +118,11 @@ type PlanService interface {
 	// Returns error if node not in plan
 	RemoveNodeFromPlan(ctx context.Context, planID, nodeID string) error
 
+	// DeleteAllPlanNodes removes all nodes associated with a travel plan
+	// Used for atomic plan editing (delete and replace nodes)
+	// Returns error if plan not found
+	DeleteAllPlanNodes(ctx context.Context, planID string) error
+
 	// ValidatePlanNodeSequence validates that a plan's node sequence has no gaps and follows rules
 	// Checks:
 	//   - All positions from 1..N are present
@@ -509,6 +514,25 @@ func (s *RelationalPlanService) ReorderNodeInPlan(ctx context.Context, planID, n
 // Atomically decrements positions of subsequent nodes
 func (s *RelationalPlanService) RemoveNodeFromPlan(ctx context.Context, planID, nodeID string) error {
 	return s.planRepo.RemoveNodeFromPlan(ctx, planID, nodeID)
+}
+
+// DeleteAllPlanNodes removes all nodes associated with a travel plan
+// Used for atomic plan editing (delete and replace nodes)
+func (s *RelationalPlanService) DeleteAllPlanNodes(ctx context.Context, planID string) error {
+	// Get all nodes for this plan first
+	planNodes, err := s.planRepo.GetPlanNodes(ctx, planID)
+	if err != nil {
+		return err
+	}
+
+	// Delete each node (repository handles position updates automatically)
+	for _, planNode := range planNodes {
+		if err := s.planRepo.RemoveNodeFromPlan(ctx, planID, planNode.NodeID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ValidatePlanNodeSequence validates that a plan's node sequence has no gaps

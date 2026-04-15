@@ -5,6 +5,7 @@ export interface Comment {
   plan_id: string;
   author_id: string;
   author?: {
+    id: string;
     username: string;
   };
   text: string;
@@ -14,7 +15,7 @@ export interface Comment {
 
 export const commentService = {
   /**
-   * Get all comments for a plan
+   * Get all comments for a plan (author info included - no extra requests needed)
    */
   async getComments(planId: string, page?: number, limit?: number): Promise<{
     comments: Comment[];
@@ -23,7 +24,7 @@ export const commentService = {
     const response = await api.get(`/plans/${planId}/comments`, {
       params: { page, limit },
     });
-    return response.data;
+    return response.data.data;
   },
 
   /**

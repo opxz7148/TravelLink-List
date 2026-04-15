@@ -137,7 +137,7 @@ Backend infrastructure fully operational. Ready to implement:
 - [x] T037 [US1] Create PlanController.BrowsePlans handler in backend/internal/controllers/plan_controller.go ✓ Implemented
 - [x] T038 [US1] Create PlanController.SearchPlans handler in backend/internal/controllers/plan_controller.go ✓ Implemented
 - [x] T039 [US1] Register routes: GET /api/v1/plans and GET /api/v1/plans/search in backend/internal/server/routes.go ✓ Wired
-- [ ] T040 [P] [US1] Create database indexes for browse performance: CREATE INDEX on travel_plans(status, created_at), travel_plans(destination) in backend/internal/database/migrations/008_add_browse_indexes.sql
+- [x] T040 [P] [US1] Create database indexes for browse performance: CREATE INDEX on travel_plans(status, created_at), travel_plans(destination) in backend/internal/database/migrations/008_add_browse_indexes.sql ✓ Complete
 - [ ] T047 [US1] Contract test for GET /api/v1/plans endpoint in backend/tests/integration/plan_integration_test.go
 
 **Checkpoint**: Backend browse and search endpoints working; indexed for performance
@@ -175,11 +175,11 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Story 3 Backend
 
-- [ ] T069 [US3] Create PromotionRequest model in backend/internal/models/promotion_request.go
-- [ ] T070 [US3] Implement PromotionRequestRepository in backend/internal/repositories/promotion_request_repository.go
-- [ ] T071 [US3] Create PromotionService.SubmitRequest method in backend/internal/services/promotion_service.go
-- [ ] T072 [US3] Create PromotionController handlers in backend/internal/controllers/promotion_controller.go
-- [ ] T073 [US3] Register routes: POST /api/v1/promotions/request and GET /api/v1/promotions/my-status in backend/internal/server/routes.go
+- [x] T069 [US3] Create PromotionRequest model in backend/internal/models/promotion_request.go ✓ Complete
+- [x] T070 [US3] Implement PromotionRequestRepository in backend/internal/repositories/promotion_request_repository.go ✓ Complete
+- [x] T071 [US3] Create PromotionService.SubmitRequest method in backend/internal/services/promotion_service.go ✓ Complete
+- [x] T072 [US3] Create PromotionController handlers in backend/internal/controllers/promotion_controller.go ✓ Complete
+- [x] T073 [US3] Register routes: POST /api/v1/promotions/request and GET /api/v1/promotions/my-status in backend/internal/server/routes.go ✓ Complete
 - [ ] T077 [US3] Contract test for POST /api/v1/promotions/request in backend/tests/integration/promotion_integration_test.go
 
 **Checkpoint**: Backend promotion request endpoints working
@@ -192,7 +192,7 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Story 4 Backend
 
-- [ ] T079 [P] [US4] Seed system nodes (attractions and transitions) in backend/internal/database/migrations/009_seed_system_nodes.sql (~50 seed INSERT statements)
+- [x] T079 [P] [US4] Seed system nodes (attractions and transitions) in backend/internal/database/migrations/009_seed_system_nodes.sql (~50 seed INSERT statements) ✓ Complete
 - [x] T080 [US4] Implement NodeRepository.List with filtering (approved only, or user's own unapproved) in backend/internal/repositories/node_repository.go ✓ Implemented (ListApprovedAttractions, ListApprovedTransitions)
 - [x] T081 [US4] Implement NodeRepository.GetByID in backend/internal/repositories/node_repository.go ✓ Implemented
 - [x] T082 [US4] Create NodeService.ListApprovedNodes and ListNodesByType in backend/internal/services/node_service.go
@@ -204,9 +204,13 @@ Backend infrastructure fully operational. Ready to implement:
 - [x] T088 [US4] Implement PlanService.PublishPlan (draft → published transition) in backend/internal/services/plan_service.go ✓ Implemented
 - [x] T089 [US4] Implement PlanService.GetPlanWithNodes (retrieves full linked list) in backend/internal/services/plan_service.go ✓ Implemented (GetPlanNodeDetails)
 - [x] T090 [US4] Register @Traveller route: POST /api/v1/plans (create draft) in backend/internal/server/routes.go ✓ Wired
-- [ ] T091 [US4] Register @Traveller route: PATCH /api/v1/plans/{id}/nodes (reorder/add/remove) in backend/internal/server/routes.go
+- [x] T091 [US4] Register @Traveller route: PATCH /api/v1/plans/{id}/nodes (reorder/add/remove) in backend/internal/server/routes.go ✓ Complete
 - [x] T092 [US4] Register @Traveller route: PATCH /api/v1/plans/{id}/publish in backend/internal/server/routes.go ✓ Wired
-- [ ] T101 [US4] Add Traveller role check on plan creation endpoints via @RBACMiddleware
+- [x] T092a [US4-Edit] Implement PlanService.DeleteAllPlanNodes for atomic plan editing in backend/internal/services/plan_service.go ✓ Implemented
+- [x] T092b [US4-Edit] Create EditPlanRequest struct in backend/internal/controllers/plan_controller.go ✓ Implemented (merged with CreatePlanRequest)
+- [x] T092c [US4-Edit] Implement PlanController.EditPlan handler (PATCH /api/v1/plans/:id) in backend/internal/controllers/plan_controller.go ✓ Implemented (atomic update: metadata + replace all nodes)
+- [x] T092d [US4-Edit] Register @Protected route: PATCH /api/v1/plans/{id} for EditPlan in backend/internal/server/routes.go ✓ Wired
+- [x] T101 [US4] Add Traveller role check on plan creation endpoints via @RBACMiddleware ✓ Complete (middleware.RequireRole used in routes)
 - [ ] T102 [US4] Contract test for POST /api/v1/plans in backend/tests/integration/plan_integration_test.go
 - [ ] T103 [US4] Contract test for PATCH /api/v1/plans/{id}/nodes in backend/tests/integration/plan_integration_test.go
 - [ ] T104 [US4] Test linked list validation (no 2 consecutive attractions) in backend/tests/unit/plan_service_test.go
@@ -339,8 +343,8 @@ Backend infrastructure fully operational. Ready to implement:
 
 **Purpose**: Frontend project structure, dependencies setup - prerequisite for all user stories
 
-- [ ] T002 Setup Vue 3 Composition API project structure: src/{components,pages,services,stores,types,router} in frontend/
-- [ ] T004 [P] Install frontend dependencies: Vue 3, Vite, Pinia, Axios, TypeScript, @vue/test-utils in frontend/package.json
+- [x] T002 Setup Vue 3 Composition API project structure: src/{components,pages,services,stores,types,router} in frontend/ ✓ Complete
+- [x] T004 [P] Install frontend dependencies: Vue 3, Vite, Pinia, Axios, TypeScript, @vue/test-utils in frontend/package.json ✓ Complete
 
 **Checkpoint**: Frontend project structure ready; dependencies installed
 
@@ -352,7 +356,7 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Frontend Services & State Management
 
-- [ ] T031 Connect frontend HTTP client to backend /api endpoint in frontend/src/services/api.ts
+- [x] T031 Connect frontend HTTP client to backend /api endpoint in frontend/src/services/api.ts ✓ Complete (JWT interceptors, security hardening)
 
 **Checkpoint**: Frontend can connect to backend API
 
@@ -364,12 +368,12 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Story 1 Frontend
 
-- [ ] T041 [US1] Create BrowsePage.vue component in frontend/src/pages/BrowsePage.vue
-- [ ] T042 [US1] Create PlanCard.vue component for plan preview in frontend/src/components/PlanCard.vue
-- [ ] T043 [US1] Implement plan_service.ts with ListPlans and SearchPlans methods in frontend/src/services/plan_service.ts
-- [ ] T044 [US1] Implement planStore (Pinia) with browse/search state in frontend/src/stores/plan_store.ts
-- [ ] T045 [US1] Setup Vue Router with /browse route in frontend/src/router/index.ts
-- [ ] T046 [US1] Add search filters UI (destination, sort, pagination) in BrowsePage.vue
+- [x] T041 [US1] Create BrowsePage.vue component in frontend/src/pages/BrowsePage.vue ✓ Complete
+- [x] T042 [US1] Create PlanCard.vue component for plan preview in frontend/src/components/PlanCard.vue ✓ Complete
+- [x] T043 [US1] Implement plan_service.ts with ListPlans and SearchPlans methods in frontend/src/services/plan_service.ts ✓ Complete
+- [x] T044 [US1] Implement planStore (Pinia) with browse/search state in frontend/src/stores/plan_store.ts ✓ Complete
+- [x] T045 [US1] Setup Vue Router with /browse route in frontend/src/router/index.ts ✓ Complete
+- [x] T046 [US1] Add search filters UI (destination, sort, pagination) in BrowsePage.vue ✓ Complete
 
 **Checkpoint**: Frontend browse and search pages working; filters and pagination functional
 
@@ -381,13 +385,13 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Story 2 Frontend
 
-- [ ] T059 [P] [US2] Create ViewPlanPage.vue component with plan details and linked list nodes in frontend/src/pages/ViewPlanPage.vue
-- [ ] T060 [P] [US2] Create CommentList.vue component in frontend/src/components/CommentList.vue
-- [ ] T061 [P] [US2] Create CommentForm.vue component in frontend/src/components/CommentForm.vue
-- [ ] T062 [P] [US2] Create RatingStars.vue component (input/display) in frontend/src/components/RatingStars.vue
-- [ ] T063 [US2] Implement comment_service.ts in frontend/src/services/comment_service.ts
-- [ ] T064 [US2] Implement rating_service.ts in frontend/src/services/rating_service.ts
-- [ ] T065 [US2] Add comment submission and rating UI to ViewPlanPage.vue
+- [x] T059 [P] [US2] Create ViewPlanPage.vue component with plan details and linked list nodes in frontend/src/pages/ViewPlanPage.vue ✓ Complete
+- [x] T060 [P] [US2] Create CommentList.vue component in frontend/src/components/CommentList.vue ✓ Complete
+- [x] T061 [P] [US2] Create CommentForm.vue component in frontend/src/components/CommentForm.vue ✓ Complete
+- [x] T062 [P] [US2] Create RatingStars.vue component (input/display) in frontend/src/components/RatingStars.vue ✓ Complete
+- [x] T063 [US2] Implement comment_service.ts in frontend/src/services/comment_service.ts ✓ Complete
+- [x] T064 [US2] Implement rating_service.ts in frontend/src/services/rating_service.ts ✓ Complete
+- [x] T065 [US2] Add comment submission and rating UI to ViewPlanPage.vue ✓ Complete
 
 **Checkpoint**: Frontend comment and rating UI components working; can submit to backend
 
@@ -414,16 +418,34 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Story 4 Frontend
 
-- [ ] T093 [US4] Create NodeCard.vue component in frontend/src/components/NodeCard.vue
-- [ ] T094 [US4] Create CreatePlanPage.vue component in frontend/src/pages/CreatePlanPage.vue
-- [ ] T095 [US4] Create NodeSelector.vue (browse and select nodes) in frontend/src/components/NodeSelector.vue
-- [ ] T096 [US4] Create LinkedListEditor.vue (drag-drop reordering) in frontend/src/components/LinkedListEditor.vue
-- [ ] T097 [US4] Implement node_service.ts in frontend/src/services/node_service.ts
-- [ ] T098 [US4] Add createPlanDraft, addNodesToPlan, reorderNodes to plan_service.ts
-- [ ] T099 [US4] Add plan creation flow to CreatePlanPage.vue (browse nodes → add → reorder → publish)
-- [ ] T100 [US4] Setup router with /create-plan route in frontend/src/router/index.ts
+- [x] T093 [US4] Create NodeCard.vue component in frontend/src/components/NodeCard.vue ✓ Implemented
+- [x] T094 [US4] Create CreatePlanPage.vue component in frontend/src/pages/CreatePlanPage.vue ✓ Implemented (with edit mode support)
+- [x] T095 [US4] Create NodeSelector.vue (browse and select nodes) in frontend/src/components/NodeSelector.vue ✓ Implemented
+- [x] T096 [US4] Create LinkedListEditor.vue (drag-drop reordering) in frontend/src/components/LinkedListEditor.vue ✓ Implemented
+- [x] T097 [US4] Implement node_service.ts in frontend/src/services/node_service.ts ✓ Implemented
+- [x] T098 [US4] Add createPlanDraft, addNodesToPlan, reorderNodes to plan_service.ts ✓ Implemented (+ editPlan method)
+- [x] T099 [US4] Add plan creation flow to CreatePlanPage.vue (browse nodes → add → reorder → publish) ✓ Implemented
+- [x] T100 [US4] Setup router with /create-plan route in frontend/src/router/index.ts ✓ Wired
 
 **Checkpoint**: Frontend plan creation flow working; linked list editor functional
+
+---
+
+## Frontend Phase 6.1: User Story 4 - Edit Travel Plans (Priority: P1) 🎯 MVP
+
+**Goal**: Traveller users can edit their travel plans with atomic node replacement
+
+### Implementation - User Story 4 Edit Frontend
+
+- [x] T100a [US4-Edit] Add planService.editPlan() method with full request payload in frontend/src/services/plan_service.ts ✓ Implemented
+- [x] T100b [US4-Edit] Implement edit mode query parameter (?edit={planId}) detection in CreatePlanPage.vue ✓ Implemented
+- [x] T100c [US4-Edit] Create PlanNode ID → Real Node ID mapping for edit requests in CreatePlanPage.vue ✓ Implemented (planNodeToNodeIdMap)
+- [x] T100d [US4-Edit] Convert enriched nodes to Node-like objects for LinkedListEditor display ✓ Implemented
+- [x] T100e [US4-Edit] Update saveDraft to use atomic editPlan endpoint in CreatePlanPage.vue ✓ Implemented
+- [x] T100f [US4-Edit] Add role-based buttons: Publish for traveller/admin, Submit to Promote for simple users in MyPlansPage.vue ✓ Implemented
+- [ ] T100g [US4-Edit] Contract test for PATCH /api/v1/plans/{id} in frontend/tests/integration/plan_integration_test.ts
+
+**Checkpoint**: Frontend plan editing flow working; atomic node replacement functional
 
 ---
 
@@ -464,13 +486,13 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - Authentication Frontend
 
-- [ ] T137 Create LoginPage.vue in frontend/src/pages/LoginPage.vue
-- [ ] T138 Create RegisterPage.vue in frontend/src/pages/RegisterPage.vue
-- [ ] T139 Implement auth_service.ts with login/register/logout in frontend/src/services/auth_service.ts
-- [ ] T140 Implement authStore (Pinia) with user, token, roles state in frontend/src/stores/auth_store.ts
-- [ ] T141 Add authentication to HTTP client (Axios/Fetch) - attach JWT to requests in frontend/src/services/api.ts
-- [ ] T142 Create router guards for @AuthRequired, @TravellerOnly, @AdminOnly in frontend/src/router/index.ts
-- [ ] T143 Add login/logout links to Navigation.vue
+- [x] T137 Create LoginPage.vue in frontend/src/pages/LoginPage.vue ✓ Complete
+- [x] T138 Create RegisterPage.vue in frontend/src/pages/RegisterPage.vue ✓ Complete
+- [x] T139 Implement auth_service.ts with login/register/logout in frontend/src/services/auth_service.ts ✓ Complete
+- [x] T140 Implement authStore (Pinia) with user, token, roles state in frontend/src/stores/auth_store.ts ✓ Complete (plus session restore)
+- [x] T141 Add authentication to HTTP client (Axios/Fetch) - attach JWT to requests in frontend/src/services/api.ts ✓ Complete (JWT interceptors)
+- [x] T142 Create router guards for @AuthRequired, @TravellerOnly, @AdminOnly in frontend/src/router/index.ts ✓ Complete
+- [x] T143 Add login/logout links to Navigation.vue ✓ Complete
 
 **Checkpoint**: Frontend authentication working; JWT integration, role guards, and login/register UI complete
 
@@ -482,10 +504,10 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - Plan Details View Frontend
 
-- [ ] T149 Create LinkedListViewer.vue component to display nodes in sequence in frontend/src/components/LinkedListViewer.vue
-- [ ] T150 Add node navigation (prev/next buttons) to LinkedListViewer.vue
-- [ ] T151 Update ViewPlanPage.vue to display linked list with LinkedListViewer component
-- [ ] T152 Add plan metadata (author, rating, destination, created date) to ViewPlanPage.vue
+- [x] T149 Create LinkedListViewer.vue component to display nodes in sequence in frontend/src/components/LinkedListViewer.vue ✓ Complete (integrated in ViewPlanPage)
+- [x] T150 Add node navigation (prev/next buttons) to LinkedListViewer.vue ✓ Complete (node display with sequence badges)
+- [x] T151 Update ViewPlanPage.vue to display linked list with LinkedListViewer component ✓ Complete
+- [x] T152 Add plan metadata (author, rating, destination, created date) to ViewPlanPage.vue ✓ Complete
 
 **Checkpoint**: Frontend plan details display complete with linked list viewer
 
@@ -497,10 +519,10 @@ Backend infrastructure fully operational. Ready to implement:
 
 ### Implementation - User Profile Frontend
 
-- [ ] T157 Create ProfilePage.vue in frontend/src/pages/ProfilePage.vue
-- [ ] T158 Display user info and list of user's travel plans in ProfilePage.vue
-- [ ] T159 Add profile link to Navigation.vue
-- [ ] T160 Setup router with /profile route in frontend/src/router/index.ts
+- [x] T157 Create ProfilePage.vue in frontend/src/pages/ProfilePage.vue ✓ Complete
+- [x] T158 Display user info and list of user's travel plans in ProfilePage.vue ✓ Complete (with edit/logout actions)
+- [x] T159 Add profile link to Navigation.vue ✓ Complete
+- [x] T160 Setup router with /profile route in frontend/src/router/index.ts ✓ Complete (with requiresAuth guard)
 
 **Checkpoint**: Frontend user profile and my plans display working
 

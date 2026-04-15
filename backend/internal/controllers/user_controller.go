@@ -55,13 +55,23 @@ type UserProfileResponse struct {
 // @Description Retrieve user profile information (public endpoint)
 // @Tags users
 // @Produce json
-// @Param id path string true "User ID"
+// @Param id path string true "User ID or 'me' for current user"
 // @Success 200 {object} map[string]UserProfileResponse "User profile retrieved successfully"
 // @Failure 404 {object} middleware.SwaggerErrorResponse "User not found"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /users/{id} [get]
 func (uc *UserController) GetProfile(c *gin.Context) {
 	userID := c.Param("id")
+
+	// Handle special case: "me" refers to current authenticated user
+	if userID == "me" {
+		claims := middleware.GetUserClaims(c)
+		if claims == nil || claims.UserID == "" {
+			middleware.AuthErrorResponse(c, "Authentication required to access 'me' endpoint")
+			return
+		}
+		userID = claims.UserID
+	}
 
 	// Get user via service
 	user, err := uc.userService.GetUserByID(c.Request.Context(), userID)

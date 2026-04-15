@@ -50,6 +50,11 @@ type NodeRepository interface {
 	// offset and limit for pagination
 	ListNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error)
 
+	// ListDraftNodesByCreator retrieves all unapproved (draft) nodes created by a specific user with pagination
+	// Used for "My Nodes" tab - shows nodes pending approval
+	// offset and limit for pagination
+	ListDraftNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error)
+
 	// ApproveNode approves a node for public visibility
 	// Returns error if node doesn't exist or is already approved
 	ApproveNode(ctx context.Context, nodeID string) error
@@ -70,4 +75,7 @@ type NodeRepository interface {
 
 	// CountNodesByCreator returns count of nodes created by a user
 	CountNodesByCreator(ctx context.Context, creatorID string) (int64, error)
+
+	// CountDraftNodesByCreator returns count of unapproved (draft) nodes created by a user
+	CountDraftNodesByCreator(ctx context.Context, creatorID string) (int64, error)
 }

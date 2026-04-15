@@ -106,6 +106,7 @@ function getNode(nodeId: string): Node | undefined {
  */
 function getNodeName(nodeId: string): string {
   const node = getNode(nodeId);
+  console.log('Getting name for nodeId:', nodeId, 'Found node:', node);
   if (!node) return 'Unknown';
   return getNodeNameHelper(node);
 }

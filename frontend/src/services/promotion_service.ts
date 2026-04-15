@@ -1,24 +1,32 @@
 import { api } from './api';
+import type { TravelPlan } from './plan_service';
+import type { UserProfile } from './user_service';
 
 export interface PromotionRequest {
   id: string;
   user_id: string;
+  user?: UserProfile;
+  plan_id?: string;
+  plan?: TravelPlan;
   status: 'pending' | 'approved' | 'rejected';
+  admin_notes: string;
   created_at: string;
-  approved_at?: string;
-  rejection_reason?: string;
+  reviewed_at?: string;
 }
 
 export const promotionService = {
   /**
-   * Submit a promotion request (simple user -> traveller)
+   * Submit a promotion request (simple user -> traveller or plan promotion)
    */
   async submitPromotionRequest(
-    careerHighlight: string
+    careerHighlight: string,
+    planId?: string
   ): Promise<PromotionRequest> {
-    const response = await api.post('/promotions/request', {
-      career_highlight: careerHighlight,
-    });
+    const payload: any = planId 
+      ? { plan_id: planId }
+      : { career_highlight: careerHighlight };
+    
+    const response = await api.post('/promotions/request', payload);
     return response.data;
   },
 
@@ -42,20 +50,28 @@ export const promotionService = {
    */
   async getPendingRequests(page?: number): Promise<{
     requests: PromotionRequest[];
-    total: number;
+    pagination: {
+      current_page: number;
+      limit: number;
+      total: number;
+    };
   }> {
     const response = await api.get('/admin/promotions/pending', {
       params: { page },
     });
-    return response.data;
+    return response.data.data;
   },
 
   /**
    * Approve a promotion request (admin only)
    */
-  async approvePromotion(requestId: string): Promise<PromotionRequest> {
+  async approvePromotion(
+    requestId: string,
+    adminNotes?: string
+  ): Promise<{ request_id: string; status: string }> {
     const response = await api.patch(
-      `/admin/promotions/${requestId}/approve`
+      `/admin/promotions/${requestId}/approve`,
+      { admin_notes: adminNotes || '' }
     );
     return response.data;
   },
@@ -65,11 +81,11 @@ export const promotionService = {
    */
   async rejectPromotion(
     requestId: string,
-    reason?: string
-  ): Promise<PromotionRequest> {
+    adminNotes?: string
+  ): Promise<{ request_id: string; status: string }> {
     const response = await api.patch(
       `/admin/promotions/${requestId}/reject`,
-      { reason }
+      { admin_notes: adminNotes || '' }
     );
     return response.data;
   },

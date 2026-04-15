@@ -884,6 +884,94 @@ paths:
             $ref: '#/definitions/middleware.SwaggerErrorResponse'
       tags:
       - plans
+    patch:
+      consumes:
+      - application/json
+      description: Traveller can edit a draft travel plan with atomic node replacement
+        (owner only, must be in draft status)
+      parameters:
+      - description: Plan ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Create plan request with updated title, description, destination,
+          and nodes array
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreatePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan updated successfully with enriched node details
+          schema:
+            properties:
+              data:
+                properties:
+                  destination:
+                    type: string
+                  description:
+                    type: string
+                  id:
+                    type: string
+                  nodes:
+                    items:
+                      properties:
+                        details:
+                          properties:
+                            category:
+                              type: string
+                            created_at:
+                              type: string
+                            location:
+                              type: string
+                            name:
+                              type: string
+                            title:
+                              type: string
+                          type: object
+                        id:
+                          type: string
+                        type:
+                          type: string
+                      type: object
+                    type: array
+                  status:
+                    type: string
+                  title:
+                    type: string
+                  updated_at:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "403":
+          description: Forbidden - not owner of plan or plan not in draft status
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "404":
+          description: Plan not found
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/middleware.SwaggerErrorResponse'
+      security:
+      - Bearer: []
+      summary: Edit a travel plan with atomic node replacement
+      tags:
+      - plans
   /plans/{id}/comments:
     get:
       description: Retrieve paginated comments for a travel plan (public endpoint)

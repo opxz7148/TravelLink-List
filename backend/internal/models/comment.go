@@ -41,6 +41,11 @@ type Comment struct {
 	// Timestamp when comment was last updated
 	// Null if not yet updated after creation
 	UpdatedAt *time.Time `gorm:"autoUpdateTime:milli;type:TIMESTAMP" json:"updated_at"`
+
+	// Author (relational embedding via foreign key)
+	// User who authored this comment, loaded via Preload
+	// Contains username and user info for display without extra queries
+	Author *User `gorm:"foreignKey:AuthorID;references:ID" json:"author,omitempty"`
 }
 
 // TableName specifies the table name for the Comment model

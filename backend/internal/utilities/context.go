@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"fmt"
 	"tll-backend/internal/middleware"
 	"tll-backend/internal/services"
 
@@ -11,6 +12,7 @@ import (
 // Returns (userID, ok) where ok is false if user is not authenticated
 func GetUserIDFromContext(c *gin.Context) (string, bool) {
 	claims := middleware.GetUserClaims(c)
+	fmt.Println(claims)
 	if claims == nil {
 		return "", false
 	}

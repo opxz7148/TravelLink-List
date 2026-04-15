@@ -43,10 +43,8 @@ const navigateTo = (path: string) => {
 
         <!-- Authenticated Links -->
           <template v-if="isAuthenticated">
-          <!-- Traveller Links -->
-            <template v-if="isTraveller">
-              <router-link to="/create-plan" class="no-underline text-slate-700 font-medium transition-colors px-3 py-2 rounded-lg hover:text-emerald-700 hover:bg-emerald-50 text-sm md:text-base">Create Plan</router-link>
-            </template>
+          <!-- Create Plan (for all authenticated users except admin) -->
+            <router-link v-if="!isAdmin" to="/create-plan" class="no-underline text-slate-700 font-medium transition-colors px-3 py-2 rounded-lg hover:text-emerald-700 hover:bg-emerald-50 text-sm md:text-base">Create Plan</router-link>
 
           <!-- Admin Links -->
             <template v-if="isAdmin">
@@ -56,6 +54,7 @@ const navigateTo = (path: string) => {
           <!-- User Menu -->
             <div class="flex items-center gap-2 border-l border-slate-200 pl-3 md:pl-4">
               <span class="hidden sm:inline rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ username }}</span>
+              <button v-if="!isAdmin" @click="navigateTo('/my-plans')" class="text-slate-700 font-medium transition-colors px-3 py-2 rounded-lg hover:text-blue-700 hover:bg-blue-50 text-sm md:text-base border-none bg-transparent cursor-pointer">My Plans</button>
               <button @click="navigateTo('/profile')" class="text-slate-700 font-medium transition-colors px-3 py-2 rounded-lg hover:text-emerald-700 hover:bg-emerald-50 text-sm md:text-base border-none bg-transparent cursor-pointer">Profile</button>
               <button @click="handleLogout" class="bg-rose-600 text-white px-3.5 py-2 rounded-lg hover:bg-rose-700 transition-colors text-sm font-semibold border-none cursor-pointer">Logout</button>
             </div>

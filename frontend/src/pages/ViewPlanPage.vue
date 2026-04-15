@@ -1,7 +1,7 @@
 <template>
-  <div class="max-w-4xl mx-auto px-4 py-6">
+  <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <!-- Plan Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5 bg-white rounded-lg border border-gray-200 mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5 bg-white rounded-lg border border-gray-200 mb-12">
       <div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ plan?.title }}</h1>
         <p class="text-gray-600 mb-1">📍 {{ plan?.destination }}</p>
@@ -18,13 +18,13 @@
     </div>
 
     <!-- Nodes List -->
-    <div v-if="plan?.nodes && plan.nodes.length > 0" class="space-y-4 mb-6">
+    <div v-if="plan?.nodes && plan.nodes.length > 0" class="space-y-4 mb-12">
       <h2 class="text-xl font-bold text-gray-900">Itinerary</h2>
       <div class="flex flex-col gap-3">
         <div v-for="(node, index) in plan.nodes" :key="node.id" class="border border-gray-200 p-4 rounded-lg bg-white hover:shadow-md transition-all">
           <div class="flex items-start gap-3">
             <!-- Position Badge -->
-            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+            <div class="flex-none w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
               :class="node.type === 'attraction' ? 'bg-blue-500' : 'bg-green-500'">
               {{ index + 1 }}
             </div>
@@ -262,7 +262,7 @@ async function submitRating(): Promise<void> {
 }
 
 function editPlan(): void {
-  router.push(`/plans/${plan.value?.id}/edit`);
+  router.push(`/create-plan?edit=${plan.value?.id}`);
 }
 
 async function deletePlan(): Promise<void> {

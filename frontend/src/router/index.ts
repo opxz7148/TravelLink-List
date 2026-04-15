@@ -10,6 +10,7 @@ import RegisterPage from '../pages/RegisterPage.vue';
 import CreatePlanPage from '../pages/CreatePlanPage.vue';
 import ProfilePage from '../pages/ProfilePage.vue';
 import AdminDashboard from '../pages/AdminDashboard.vue';
+import MyPlansPage from '../pages/MyPlansPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -28,6 +29,12 @@ const routes: RouteRecordRaw[] = [
     path: '/plans/:id',
     name: 'ViewPlan',
     component: ViewPlanPage,
+  },
+
+  {
+    path: '/profile/:username',
+    name: 'UserProfile',
+    component: ProfilePage,
   },
 
   {
@@ -58,14 +65,22 @@ const routes: RouteRecordRaw[] = [
     },
   },
 
-  // Protected routes (traveller only)
+  {
+    path: '/my-plans',
+    name: 'MyPlans',
+    component: MyPlansPage,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+
+  // Protected routes (anyone can create draft)
   {
     path: '/create-plan',
     name: 'CreatePlan',
     component: CreatePlanPage,
     meta: {
       requiresAuth: true,
-      requiresRole: 'traveller',
     },
   },
 

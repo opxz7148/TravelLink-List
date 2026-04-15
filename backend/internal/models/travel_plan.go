@@ -13,6 +13,7 @@ const (
 	TravelPlanStatusDraft     TravelPlanStatus = "draft"
 	TravelPlanStatusPublished TravelPlanStatus = "published"
 	TravelPlanStatusSuspended TravelPlanStatus = "suspended"
+	TravelPlanStatusDeleted   TravelPlanStatus = "deleted"
 )
 
 // String returns the string representation of a TravelPlanStatus
@@ -26,6 +27,7 @@ func CheckTravelPlanStatus(status TravelPlanStatus) bool {
 		TravelPlanStatusDraft:     true,
 		TravelPlanStatusPublished: true,
 		TravelPlanStatusSuspended: true,
+		TravelPlanStatusDeleted:   true,
 	}
 	return validStatuses[status]
 }

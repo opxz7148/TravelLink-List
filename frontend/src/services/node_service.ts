@@ -190,11 +190,12 @@ export const nodeService = {
   },
 
   /**
-   * Get user's own nodes with embedded details (including unapproved)
+   * Get user's own draft nodes with embedded details (unapproved only)
    */
   async getUserNodes(): Promise<Node[]> {
-    const response = await api.get('/nodes/my-nodes');
-    return response.data.nodes || response.data;
+    const response = await api.get('/nodes/my-draft');
+    const nodes = response.data.data.nodes || [];
+    return Array.isArray(nodes) ? nodes : [];
   },
 
   /**

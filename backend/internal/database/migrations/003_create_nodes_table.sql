@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS nodes (
     created_by TEXT NOT NULL,
     
     -- Whether node is approved by admin
-    -- User-created nodes start as false, system nodes start as true
-    is_approved BOOLEAN NOT NULL DEFAULT true,
+    -- User-created nodes start as false, system nodes are explicitly set to true
+    is_approved BOOLEAN NOT NULL DEFAULT false,
     
     -- Timestamps
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

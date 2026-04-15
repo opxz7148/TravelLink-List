@@ -3,6 +3,7 @@ import { api } from './api';
 export interface TravelPlan {
   id: string;
   title: string;
+  description?: string;
   destination: string;
   author_id: string;
   author?: {
@@ -11,7 +12,9 @@ export interface TravelPlan {
   status: 'draft' | 'published' | 'archived';
   rating_count: number;
   rating_sum: number;
+  rating_average?: number;
   comment_count: number;
+  node_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +66,11 @@ export interface SearchPlansRequest {
   limit?: number;
 }
 
+function normalizeTotal(responseData: any): number {
+  const total = responseData?.pagination?.total_items ?? responseData?.total ?? 0;
+  return Number(total) || 0;
+}
+
 export const planService = {
   /**
    * List published travel plans with pagination
@@ -73,7 +81,12 @@ export const planService = {
     page: number;
   }> {
     const response = await api.get('/plans', { params });
-    return response.data.data;
+    const data = response.data.data;
+    return {
+      plans: data.plans || [],
+      total: normalizeTotal(data),
+      page: Number(data.page) || Number(params?.page) || 1,
+    };
   },
 
   /**
@@ -84,8 +97,11 @@ export const planService = {
     total: number;
   }> {
     const response = await api.get('/plans/search', { params });
-    // Backend response envelope: { success, api_version, data: { plans, pagination }, timestamp }
-    return response.data.data;
+    const data = response.data.data;
+    return {
+      plans: data.plans || [],
+      total: normalizeTotal(data),
+    };
   },
 
   /**
@@ -102,11 +118,20 @@ export const planService = {
 
   /**
    * Get user's own travel plans (private - requires auth)
+   * Returns both draft and published plans
    */
-  async getUserPlans(): Promise<TravelPlan[]> {
-    const response = await api.get('/users/me/plans');
-    // Backend response envelope: { success, api_version, data: [...], timestamp }
-    return response.data.data;
+  async getUserPlans(offset?: number, limit?: number): Promise<{
+    plans: TravelPlan[];
+    total: number;
+  }> {
+    const response = await api.get('/users/me/plans', {
+      params: { offset, limit },
+    });
+    // Backend response envelope: { success, api_version, data: { plans, pagination }, timestamp }
+    return {
+      plans: response.data.data.plans || [],
+      total: response.data.data.pagination?.total_items || 0,
+    };
   },
 
   /**
@@ -212,7 +237,37 @@ export const planService = {
   },
 
   /**
-   * Delete a plan (traveller/admin)
+   * Edit plan with full node replacement (atomic operation)
+   * Updates plan metadata and replaces all nodes in a single request
+   * @param planId Plan ID to edit
+   * @param title Plan title
+   * @param destination Plan destination
+   * @param description Plan description
+   * @param nodeDetails Array of node details with plan-specific information
+   * @returns Updated plan with new nodes
+   */
+  async editPlan(
+    planId: string,
+    title: string,
+    destination: string,
+    description: string,
+    nodeDetails: NodeDetailForPlan[]
+  ): Promise<PlanDetail> {
+    const response = await api.patch(`/plans/${planId}`, {
+      title,
+      destination,
+      description,
+      nodes: nodeDetails,
+    });
+    // Backend response envelope: { success, api_version, data: { plan, nodes }, timestamp }
+    return {
+      ...response.data.data.plan,
+      nodes: response.data.data.nodes,
+    };
+  },
+
+  /**
+   * Delete a plan (traveller/admin, owns the plan)
    */
   async deletePlan(planId: string): Promise<void> {
     await api.delete(`/plans/${planId}`);

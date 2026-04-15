@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"tll-backend/internal/logger"
 	"tll-backend/internal/middleware"
@@ -323,7 +324,7 @@ func (ac *AdminController) DeactivateUser(c *gin.Context) {
 
 // ApprovePromotionRequest handles PATCH /api/v1/admin/promotions/:id/approve - approve promotion request
 // @Summary Approve a promotion request
-// @Description Admin can approve a promotion request. If no plan is specified, user role is upgraded to traveller. (admin only)
+// @Description Admin can approve a promotion request. If no plan is specified, user role is upgraded to traveller and all user's draft nodes are auto-approved. If a plan is specified, user is promoted to traveller and the plan is published with nodes auto-approved.
 // @Tags admin
 // @Security Bearer
 // @Accept json
@@ -336,6 +337,7 @@ func (ac *AdminController) DeactivateUser(c *gin.Context) {
 // @Router /admin/promotions/{id}/approve [patch]
 func (ac *AdminController) ApprovePromotionRequest(c *gin.Context) {
 	requestID := c.Param("id")
+	log := logger.GetLogger("AdminController")
 
 	var req struct {
 		AdminNotes string `json:"admin_notes"`
@@ -347,8 +349,17 @@ func (ac *AdminController) ApprovePromotionRequest(c *gin.Context) {
 		return
 	}
 
+	// Get the promotion request to get user ID and plan ID
+	promotionReq, err := ac.promotionService.GetRequest(c.Request.Context(), requestID)
+	if err != nil || promotionReq == nil {
+		middleware.NotFoundErrorResponse(c, "Promotion request not found")
+		return
+	}
+
+	userID := promotionReq.UserID
+
 	// Approve the request
-	err := ac.promotionService.ApproveRequest(c.Request.Context(), requestID, req.AdminNotes)
+	err = ac.promotionService.ApproveRequest(c.Request.Context(), requestID, req.AdminNotes)
 	if err != nil {
 		if err == models.ErrNotFound {
 			middleware.NotFoundErrorResponse(c, "Promotion request not found")
@@ -362,9 +373,151 @@ func (ac *AdminController) ApprovePromotionRequest(c *gin.Context) {
 		return
 	}
 
+	// Always promote user to traveller role
+	err = ac.userService.PromoteToTraveller(c.Request.Context(), userID)
+	if err != nil {
+		// Log error but don't fail - still send success response
+		log.ServiceError(c.Request.Context(), "UserService", "PromoteToTraveller", err, userID)
+	}
+
+	// If plan is specified (plan promotion request), publish the plan
+	if promotionReq.PlanID != nil && *promotionReq.PlanID != "" {
+		planID := *promotionReq.PlanID
+
+		// Publish the plan
+		err = ac.planService.PublishPlan(c.Request.Context(), planID)
+		if err != nil {
+			// Log error but don't fail - user is already promoted
+			log.ServiceError(c.Request.Context(), "PlanService", "PublishPlan", err, planID)
+		}
+
+		// Get all nodes in the plan and auto-approve user's draft nodes
+		planNodes, err := ac.planService.GetPlanNodes(c.Request.Context(), planID)
+		if err != nil {
+			// Log error but don't fail - plan is already published
+			c.Error(err)
+		} else {
+			// Auto-approve draft nodes created by this user in this plan
+			for _, planNode := range planNodes {
+				if planNode.NodeID != "" {
+					node, err := ac.nodeService.GetNodeByID(c.Request.Context(), planNode.NodeID)
+					if err == nil && node != nil && node.CreatedBy == userID && !node.IsApproved {
+						if err := ac.nodeService.ApproveNode(c.Request.Context(), node.ID); err != nil {
+							// Log error but don't fail - continue with other nodes
+							c.Error(err)
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Role upgrade request (no plan specified)
+		// Get all user's draft nodes and auto-approve them
+		draftNodes, err := ac.nodeService.ListDraftNodesByCreator(c.Request.Context(), userID, 0, 1000)
+		if err != nil {
+			// Log error but don't fail - promotion is already approved
+			c.Error(err)
+		} else {
+			// Auto-approve each draft node
+			for _, node := range draftNodes {
+				if err := ac.nodeService.ApproveNode(c.Request.Context(), node.ID); err != nil {
+					// Log error but don't fail - continue with other nodes
+					c.Error(err)
+				}
+			}
+		}
+	}
+
 	middleware.SuccessResponse(c, http.StatusOK, gin.H{
 		"request_id": requestID,
 		"status":     "approved",
+	})
+}
+
+// ListPendingPromotions handles GET /api/v1/admin/promotions/pending - list pending promotion requests
+// @Summary List pending promotion requests
+// @Description Admin can view all pending promotion requests awaiting review (admin only)
+// @Tags admin
+// @Security Bearer
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(50)
+// @Success 200 {object} map[string]interface{} "List of pending promotion requests"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /admin/promotions/pending [get]
+func (ac *AdminController) ListPendingPromotions(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "50")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+
+	offset := (page - 1) * limit
+
+	// Get pending promotion requests
+	requests, total, err := ac.promotionService.ListPending(c.Request.Context(), offset, limit)
+	if err != nil {
+		middleware.InternalErrorResponse(c, "Failed to fetch pending promotion requests")
+		return
+	}
+
+	// Enrich requests with user and plan details
+	type PromotionRequestDetailResponse struct {
+		ID         string             `json:"id"`
+		UserID     string             `json:"user_id"`
+		User       *models.User       `json:"user,omitempty"`
+		PlanID     *string            `json:"plan_id"`
+		Plan       *models.TravelPlan `json:"plan,omitempty"`
+		Status     string             `json:"status"`
+		AdminNotes string             `json:"admin_notes"`
+		CreatedAt  string             `json:"created_at"`
+		ReviewedAt *string            `json:"reviewed_at"`
+	}
+
+	responses := make([]PromotionRequestDetailResponse, len(requests))
+	for i, req := range requests {
+		reviewedAtStr := ""
+		if req.ReviewedAt != nil {
+			reviewedAtStr = req.ReviewedAt.String()
+		}
+
+		// Get user details
+		user, _ := ac.userService.GetUserByID(c.Request.Context(), req.UserID)
+
+		// Get plan details if plan_id is specified
+		var plan *models.TravelPlan
+		if req.PlanID != nil && *req.PlanID != "" {
+			plan, _ = ac.planService.GetPlanByID(c.Request.Context(), *req.PlanID)
+		}
+
+		responses[i] = PromotionRequestDetailResponse{
+			ID:         req.ID,
+			UserID:     req.UserID,
+			User:       user,
+			PlanID:     req.PlanID,
+			Plan:       plan,
+			Status:     req.Status,
+			AdminNotes: req.AdminNotes,
+			CreatedAt:  req.CreatedAt.String(),
+			ReviewedAt: &reviewedAtStr,
+		}
+	}
+
+	middleware.SuccessResponse(c, http.StatusOK, gin.H{
+		"requests": responses,
+		"pagination": gin.H{
+			"current_page": page,
+			"limit":        limit,
+			"total":        total,
+		},
 	})
 }
 

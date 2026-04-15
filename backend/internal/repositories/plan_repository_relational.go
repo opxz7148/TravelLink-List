@@ -50,13 +50,13 @@ func (r *RelationalPlanRepository) GetPlanByID(ctx context.Context, planID strin
 }
 
 // GetPlansByAuthor retrieves all travel plans authored by a specific user
-// Includes draft, published, and suspended plans
+// Excludes deleted plans (only draft, published, and suspended)
 // offset: pagination offset (0-based)
 // limit: maximum results to return
 func (r *RelationalPlanRepository) GetPlansByAuthor(ctx context.Context, authorID string, offset, limit int) ([]*models.TravelPlan, error) {
 	var plans []*models.TravelPlan
 	query := r.getDB().WithContext(ctx).
-		Where("author_id = ?", authorID).
+		Where("author_id = ? AND status != ?", authorID, models.TravelPlanStatusDeleted.String()).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(limit)
@@ -72,14 +72,14 @@ func (r *RelationalPlanRepository) GetPlansByAuthor(ctx context.Context, authorI
 	return plans, nil
 }
 
-// ListPublishedPlans retrieves all published travel plans (not deleted by admin)
+// ListPublishedPlans retrieves all published travel plans (excludes deleted)
 // Paginated for efficient browsing
 // offset: pagination offset (0-based)
 // limit: maximum results to return
 func (r *RelationalPlanRepository) ListPublishedPlans(ctx context.Context, offset, limit int) ([]*models.TravelPlan, error) {
 	var plans []*models.TravelPlan
 	query := r.getDB().WithContext(ctx).
-		Where("status = ? AND is_deleted_by_admin = false", models.TravelPlanStatusPublished.String()).
+		Where("status = ? AND status != ?", models.TravelPlanStatusPublished.String(), models.TravelPlanStatusDeleted.String()).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(limit)
@@ -104,7 +104,7 @@ func (r *RelationalPlanRepository) SearchPlans(ctx context.Context, query string
 	searchPattern := "%" + query + "%"
 
 	dbQuery := r.getDB().WithContext(ctx).
-		Where("status = ? AND is_deleted_by_admin = false", models.TravelPlanStatusPublished.String()).
+		Where("status = ? AND status != ?", models.TravelPlanStatusPublished.String(), models.TravelPlanStatusDeleted.String()).
 		Where("destination LIKE ? OR title LIKE ?", searchPattern, searchPattern).
 		Order("created_at DESC").
 		Offset(offset).
@@ -131,18 +131,18 @@ func (r *RelationalPlanRepository) UpdatePlan(ctx context.Context, plan *models.
 	return nil
 }
 
-// DeletePlan performs a soft-delete by setting is_deleted_by_admin to true
-// Plan remains in database but hidden from listings
+// DeletePlan performs a soft-delete by setting status to "deleted"
+// Plan remains in database but never included in API responses
 func (r *RelationalPlanRepository) DeletePlan(ctx context.Context, planID string) error {
-	return r.UpdateField(ctx, &models.TravelPlan{}, "is_deleted_by_admin", true, "id = ?", planID)
+	return r.UpdateField(ctx, &models.TravelPlan{}, "status", models.TravelPlanStatusDeleted.String(), "id = ?", planID)
 }
 
-// CountPlans returns the total number of published plans (not deleted)
+// CountPlans returns the total number of published plans (excludes deleted)
 func (r *RelationalPlanRepository) CountPlans(ctx context.Context) (int64, error) {
 	var count int64
 	if err := r.getDB().WithContext(ctx).
 		Model(&models.TravelPlan{}).
-		Where("status = ? AND is_deleted_by_admin = false", models.TravelPlanStatusPublished.String()).
+		Where("status = ? AND status != ?", models.TravelPlanStatusPublished.String(), models.TravelPlanStatusDeleted.String()).
 		Count(&count).Error; err != nil {
 		return 0, err
 	}

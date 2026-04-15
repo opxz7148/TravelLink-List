@@ -1,17 +1,25 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 py-6 min-h-screen">
+  <div class="w-full max-w-400 mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
     <!-- Page Header -->
     <div class="text-center mb-8">
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">Create a New Travel Plan</h1>
-      <p class="text-gray-600">Design your perfect itinerary with our curated nodes</p>
+      <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ isEditMode ? 'Edit Travel Plan' : 'Create a New Travel Plan' }}</h1>
+      <p class="text-gray-600">{{ isEditMode ? 'Update your draft plan' : 'Design your perfect itinerary with our curated nodes' }}</p>
+    </div>
+
+    <!-- Loading existing plan -->
+    <div v-if="isEditMode && !currentPlan && loadingNodes" class="min-h-[85vh] grid place-items-center">
+      <div class="w-full max-w-md bg-white p-8 rounded-lg border border-gray-200 shadow-sm text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p class="text-gray-600">Loading your draft plan...</p>
+      </div>
     </div>
 
     <!-- Step 1: Plan Basics -->
-    <div v-if="!currentPlan" class="max-w-md mx-auto">
-      <div class="bg-white p-8 rounded-lg border border-gray-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gray-900 mb-6">Step 1: Plan Basics</h2>
+    <div v-else-if="!currentPlan" class="min-h-[85vh] grid place-items-center">
+      <div class="w-full max-w-md bg-white p-10 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xl font-bold text-gray-900 mb-8">Step 1: Plan Basics</h2>
 
-        <div class="flex flex-col gap-2 mb-5">
+        <div class="flex flex-col gap-3 mb-7">
           <label for="title" class="text-sm font-semibold text-gray-700">Travel Plan Title *</label>
           <input
             id="title"
@@ -23,7 +31,7 @@
           />
         </div>
 
-        <div class="flex flex-col gap-2 mb-5">
+        <div class="flex flex-col gap-3 mb-8">
           <label for="destination" class="text-sm font-semibold text-gray-700">Destination *</label>
           <input
             id="destination"
@@ -60,7 +68,7 @@
         </div>
 
         <button @click="resetPlan" class="px-4 py-2 bg-gray-200 text-gray-900 rounded-md text-sm font-medium hover:bg-gray-300 transition-all">
-          Start Over
+          {{ isEditMode ? 'Cancel' : 'Start Over' }}
         </button>
       </div>
 
@@ -79,15 +87,32 @@
         <!-- Right: Node Selector (Attractions and Transitions Side by Side) -->
         <div class="lg:col-span-2">
           <div class="space-y-4">
+            <!-- Create Node Button -->
+            <button
+              @click="showNodeCreationModal = true"
+              class="w-full px-4 py-3 bg-blue-50 text-blue-600 border-2 border-dashed border-blue-300 rounded-lg font-medium hover:bg-blue-100 transition-all"
+            >
+              + Create Your Own Node
+            </button>
+
             <NodeSelector
+              ref="nodeSelectorRef"
               :selected-node-ids="selectedNodes"
               :is-loading="loadingNodes"
+              :show-my-nodes-tab="true"
               @select="addNode"
               @deselect="removeNode"
             />
           </div>
         </div>
       </div>
+
+      <!-- Node Creation Modal -->
+      <NodeCreationModal
+        :is-open="showNodeCreationModal"
+        @close="showNodeCreationModal = false"
+        @created="onNodeCreated"
+      />
 
       <!-- Node Details Editor -->
       <div v-if="selectedNodes.length > 0" class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
@@ -104,7 +129,7 @@
             >
               <div class="flex items-center gap-3">
                 <span
-                  class="inline-block w-6 h-6 rounded-full text-white text-xs font-semibold flex items-center justify-center"
+                  class="grid w-6 h-6 rounded-full text-white text-xs font-semibold place-items-center"
                   :class="getNodeType(nodeId) === 'attraction' ? 'bg-blue-500' : 'bg-green-500'"
                 >
                   {{ index + 1 }}
@@ -184,7 +209,7 @@
 
       <!-- Save/Publish Actions Section -->
       <div v-if="selectedNodes.length > 0" class="p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Ready to Save Your Plan?</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ isEditMode ? 'Update Your Plan?' : 'Ready to Save Your Plan?' }}</h3>
         
         <div class="flex flex-col gap-3">
           <!-- Save as Draft Button -->
@@ -193,12 +218,12 @@
             :disabled="loading"
             class="w-full px-6 py-3 bg-blue-600 text-white rounded-md text-base font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            {{ loading ? 'Saving...' : 'Save as Draft' }}
+            {{ loading ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Draft' : 'Save as Draft') }}
           </button>
 
-          <!-- Publish Button (traveller and admin) -->
+          <!-- Publish Button (traveller and admin, only for new plans) -->
           <button
-            v-if="authStore.isTraveller"
+            v-if="!isEditMode && authStore.isTraveller"
             @click="publishPlan"
             :disabled="loading"
             class="w-full px-6 py-3 bg-green-600 text-white rounded-md text-base font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -206,9 +231,12 @@
             {{ loading ? 'Publishing...' : 'Create & Publish Plan' }}
           </button>
 
-          <!-- Info text -->
-          <p class="text-sm text-gray-600 mt-2">
-            💡 Save as Draft to keep editing later. Publish to make your plan visible to the community.
+          <!-- Info text for regular users -->
+          <p v-if="!authStore.isTraveller" class="text-sm text-orange-700 bg-orange-50 px-3 py-2 rounded border border-orange-200 mt-2">
+            💡 You can save and edit draft plans. To publish plans and make them visible to the community, please submit a promotion request to become a Traveller.
+          </p>
+          <p v-else class="text-sm text-gray-600 mt-2">
+            💡 {{ isEditMode ? 'Save your changes to the draft.' : 'Save as Draft to keep editing later. Publish to make your plan visible to the community.' }}
           </p>
         </div>
       </div>
@@ -223,17 +251,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import LinkedListEditor from '../components/LinkedListEditor.vue';
 import NodeSelector from '../components/NodeSelector.vue';
+import NodeCreationModal from '../components/NodeCreationModal.vue';
 import { planService } from '../services/plan_service';
 import type { TravelPlan, PlanDetail, NodeDetailForPlan } from '../services/plan_service';
 import { nodeService, getNodeName as getNodeNameHelper } from '../services/node_service';
 import type { Node } from '../services/node_service';
 import { useAuthStore } from '../stores/auth_store';
+import { useUiStore } from '../stores/ui_store';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const planTitle = ref('');
 const planDestination = ref('');
@@ -245,6 +277,11 @@ const editingNodeId = ref<string | null>(null); // Track which node is being edi
 const errorMessage = ref('');
 const loading = ref(false);
 const loadingNodes = ref(false);
+const isEditMode = ref(false);
+const editingPlanId = ref<string | null>(null);
+const planNodeToNodeIdMap = ref<Map<string, string>>(new Map()); // Map PlanNode IDs to actual Node IDs (for edit mode)
+const showNodeCreationModal = ref(false);
+const nodeSelectorRef = ref<InstanceType<typeof NodeSelector> | null>(null);
 
 /**
  * Proceed to node selection by loading available nodes
@@ -266,27 +303,56 @@ async function proceedToNodeSelection(): Promise<void> {
 
     availableNodes.value = nodes;
     
-    // Initialize plan as a draft object (not yet created on server)
-    // This is just a local model to show in the UI
-    currentPlan.value = {
-      id: '', // Will be assigned when created
-      title: planTitle.value.trim(),
-      destination: planDestination.value.trim(),
-      author_id: authStore.user?.id || '',
-      status: 'draft',
-      rating_count: 0,
-      rating_sum: 0,
-      comment_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      nodes: [],
-    };
+    // Initialize plan as a draft object (not yet created on server for new plans)
+    // For existing plans, use the loaded data
+    if (!currentPlan.value || !isEditMode.value) {
+      currentPlan.value = {
+        id: '', // Will be assigned when created
+        title: planTitle.value.trim(),
+        destination: planDestination.value.trim(),
+        author_id: authStore.user?.id || '',
+        status: 'draft',
+        rating_count: 0,
+        rating_sum: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        nodes: [],
+      };
+    }
   } catch (error: any) {
     console.error('Failed to load nodes:', error);
     errorMessage.value = 'Failed to load available nodes';
     currentPlan.value = null;
   } finally {
     loadingNodes.value = false;
+  }
+}
+
+/**
+ * Handle when a new node is created in the modal
+ * Reload the available nodes to show the newly created node in "My Nodes" tab
+ */
+async function onNodeCreated(): Promise<void> {
+  try {
+    // Reload available nodes and user's draft nodes
+    const [approvedNodes, userNodes] = await Promise.all([
+      nodeService.listApprovedNodes({ approved_only: true }),
+      nodeService.getUserNodes(),
+    ]);
+    
+    // Combine both lists for display
+    availableNodes.value = [...approvedNodes.nodes, ...userNodes];
+    
+    // Also refresh the NodeSelector's user nodes list
+    if (nodeSelectorRef.value) {
+      await nodeSelectorRef.value.refreshUserNodes();
+    }
+    
+    uiStore.showSuccess('Node created successfully! Find it in the "My Nodes" tab to add it to your plan.');
+  } catch (error: any) {
+    console.error('Failed to reload nodes:', error);
+    errorMessage.value = 'Node created but failed to reload the node list. Please refresh the page.';
   }
 }
 
@@ -387,8 +453,21 @@ function updateNodeDuration(nodeId: string, durationMinutes: number | null): voi
 
 /**
  * Get node name by ID using the node service helper
+ * In edit mode, takes name from backend response (details.name or details.title)
  */
 function getNodeName(nodeId: string): string {
+  // First check if this node is in the existing plan (edit mode)
+  if (isEditMode.value && currentPlan.value?.nodes) {
+    const existingNode = currentPlan.value.nodes.find((n) => n.id === nodeId);
+    if (existingNode?.details) {
+      if (existingNode.type === 'attraction' && (existingNode.details as any).name) {
+        return (existingNode.details as any).name;
+      } else if (existingNode.type === 'transition' && (existingNode.details as any).title) {
+        return (existingNode.details as any).title;
+      }
+    }
+  }
+  // Otherwise, look up from availableNodes
   const node = availableNodes.value.find((n) => n.id === nodeId);
   return node ? getNodeNameHelper(node) : 'Unknown Node';
 }
@@ -402,17 +481,25 @@ function getNodeType(nodeId: string): string {
 }
 
 function resetPlan(): void {
-  currentPlan.value = null;
-  selectedNodes.value = [];
-  nodeDetails.value.clear();
-  editingNodeId.value = null;
-  planTitle.value = '';
-  planDestination.value = '';
-  errorMessage.value = '';
+  if (isEditMode.value) {
+    // In edit mode, go back to my plans
+    planNodeToNodeIdMap.value.clear();
+    router.push('/my-plans');
+  } else {
+    // In create mode, reset the form
+    currentPlan.value = null;
+    selectedNodes.value = [];
+    nodeDetails.value.clear();
+    planNodeToNodeIdMap.value.clear();
+    editingNodeId.value = null;
+    planTitle.value = '';
+    planDestination.value = '';
+    errorMessage.value = '';
+  }
 }
 
 /**
- * Save plan and nodes, keeping it as draft
+ * Save plan and nodes, keeping it as draft (or update existing draft)
  */
 async function saveDraft(): Promise<void> {
   if (!currentPlan.value || selectedNodes.value.length === 0) {
@@ -424,32 +511,76 @@ async function saveDraft(): Promise<void> {
     loading.value = true;
     errorMessage.value = '';
 
-    // Build NodeDetailForPlan array from selected nodes
-    const nodesToAdd: NodeDetailForPlan[] = selectedNodes.value.map((nodeId) => {
-      const detail = nodeDetails.value.get(nodeId);
-      return {
-        node_id: nodeId,
-        description: detail?.description,
-        estimated_price_cents: detail?.estimated_price_cents,
-        duration_minutes: detail?.duration_minutes,
-      };
-    });
+    if (isEditMode.value && editingPlanId.value) {
+      // EDIT MODE: Use atomic editPlan endpoint to update plan + replace nodes
+      
+      // Build NodeDetailForPlan array from selected nodes
+      // Map PlanNode IDs back to actual Node IDs using the stored mapping
+      const nodesToUpdate: NodeDetailForPlan[] = selectedNodes.value.map((planNodeId) => {
+        const detail = nodeDetails.value.get(planNodeId);
+        // Use the mapping to get the real Node ID, fallback to planNodeId if not found
+        const realNodeId = planNodeToNodeIdMap.value.get(planNodeId) || planNodeId;
+        return {
+          node_id: realNodeId,
+          description: detail?.description,
+          estimated_price_cents: detail?.estimated_price_cents,
+          duration_minutes: detail?.duration_minutes,
+        };
+      });
 
-    // Create plan with nodes in one request
-    const createdPlan = await planService.createPlanWithNodes(
-      planTitle.value.trim(),
-      planDestination.value.trim(),
-      nodesToAdd,
-      'draft'
-    );
+      // Call atomic editPlan endpoint
+      const updatedPlan = await planService.editPlan(
+        editingPlanId.value,
+        planTitle.value.trim(),
+        planDestination.value.trim(),
+        currentPlan.value?.description || '',
+        nodesToUpdate
+      );
 
-    currentPlan.value = createdPlan;
+      currentPlan.value = updatedPlan;
+      uiStore.showSuccess('Plan updated successfully!');
+      
+      // Redirect to my plans
+      setTimeout(() => {
+        router.push('/my-plans');
+      }, 1500);
+    } else {
+      // CREATE MODE: Create new draft plan with nodes
+      
+      // Build NodeDetailForPlan array from selected nodes
+      const nodesToAdd: NodeDetailForPlan[] = selectedNodes.value.map((nodeId) => {
+        const detail = nodeDetails.value.get(nodeId);
+        return {
+          node_id: nodeId,
+          description: detail?.description,
+          estimated_price_cents: detail?.estimated_price_cents,
+          duration_minutes: detail?.duration_minutes,
+        };
+      });
 
-    // Show success
-    alert('Plan saved as draft! You can edit it later or publish it whenever you\'re ready.');
+      // Create plan with nodes in one request
+      const createdPlan = await planService.createPlanWithNodes(
+        planTitle.value.trim(),
+        planDestination.value.trim(),
+        nodesToAdd,
+        'draft'
+      );
+
+      currentPlan.value = createdPlan;
+      editingPlanId.value = createdPlan.id;
+
+      // Show success
+      uiStore.showSuccess('Plan saved as draft! You can edit it later or publish it whenever you\'re ready.');
+      
+      // Redirect to my plans after a short delay
+      setTimeout(() => {
+        router.push('/my-plans');
+      }, 1500);
+    }
   } catch (error: any) {
     console.error('Failed to save plan:', error);
     errorMessage.value = error.message || 'Failed to save plan';
+    uiStore.showError(errorMessage.value);
   } finally {
     loading.value = false;
   }
@@ -497,15 +628,115 @@ async function publishPlan(): Promise<void> {
   }
 }
 
-onMounted(() => {
-  // Ensure user is authenticated and is traveller or admin
+onMounted(async () => {
+  // Ensure user is authenticated
   if (!authStore.isAuthenticated) {
     router.push('/login');
     return;
   }
 
-  if (!authStore.isTraveller) {
-    errorMessage.value = 'You must be a traveller to create plans. Submit a promotion request to upgrade your account.';
+  // Prevent admin users from accessing create plan
+  if (authStore.userRole === 'admin') {
+    router.push('/my-plans');
+    return;
+  }
+
+  // Check if we're in edit mode (loading existing draft plan)
+  const editPlanId = route.query.edit as string | undefined;
+  if (editPlanId) {
+    try {
+      isEditMode.value = true;
+      editingPlanId.value = editPlanId;
+      loadingNodes.value = true;
+
+      // Load the existing plan and available nodes in parallel
+      const [existingPlan, { nodes }] = await Promise.all([
+        planService.getPlanDetail(editPlanId),
+        nodeService.listApprovedNodes({ approved_only: true }),
+      ]);
+
+      // Verify the plan is owned by the current user
+      if (existingPlan.author_id !== authStore.user?.id) {
+        errorMessage.value = 'You can only edit your own plans.';
+        loadingNodes.value = false;
+        return;
+      }
+
+      // Pre-fill form with existing plan data
+      planTitle.value = existingPlan.title;
+      planDestination.value = existingPlan.destination;
+      
+      // In edit mode, we have enriched nodes already - use them for display
+      if (existingPlan.nodes && existingPlan.nodes.length > 0) {
+        // Convert enriched nodes to Node-like objects for LinkedListEditor
+        const enrichedNodes = existingPlan.nodes.map((pn: any) => {
+          const nodeId = pn.id; // This is PlanNode ID
+          
+          // Find matching approved node to get the real Node ID
+          const detailsKey = pn.type === 'attraction' ? pn.details?.name : pn.details?.title;
+          const realNode = nodes.find((n: any) => {
+            const name = n.type === 'attraction' ? n.attraction?.name : n.transition?.title;
+            return name === detailsKey && n.type === pn.type;
+          });
+          
+          // Store the mapping: PlanNode ID -> Real Node ID
+          if (realNode) {
+            planNodeToNodeIdMap.value.set(nodeId, realNode.id);
+          }
+          
+          return {
+            id: nodeId, // Keep PlanNode ID for selectedNodes
+            type: pn.type,
+            created_by: '',
+            is_approved: true,
+            created_at: '',
+            attraction: pn.type === 'attraction' && pn.details ? {
+              name: pn.details.name || 'Unknown',
+              description: pn.details.description || '',
+              location: pn.details.location || '',
+              category: pn.details.category || '',
+              node_id: nodeId,
+              created_by: '',
+              created_at: '',
+            } : null,
+            transition: pn.type === 'transition' && pn.details ? {
+              title: pn.details.title || 'Unknown',
+              description: pn.details.description || '',
+              node_id: nodeId,
+              created_by: '',
+              created_at: '',
+            } : null,
+          } as any;
+        });
+        availableNodes.value = enrichedNodes;
+      }
+      
+      // Also include newly approved nodes for adding new nodes
+      availableNodes.value = [...availableNodes.value, ...nodes];
+
+      // Pre-populate selected nodes and their details
+      selectedNodes.value = existingPlan.nodes?.map((n) => n.id) || [];
+      existingPlan.nodes?.forEach((node) => {
+        const detail: NodeDetailForPlan = {
+          node_id: node.id,
+        };
+        if (node.description) detail.description = node.description;
+        if (node.estimated_price_cents) detail.estimated_price_cents = node.estimated_price_cents;
+        if (node.duration_minutes) detail.duration_minutes = node.duration_minutes;
+        nodeDetails.value.set(node.id, detail);
+      });
+
+      // Initialize the plan object for UI
+      currentPlan.value = existingPlan;
+    } catch (error: any) {
+      console.error('Failed to load draft plan:', error);
+      errorMessage.value = error.message || 'Failed to load your draft plan';
+      isEditMode.value = false;
+      editingPlanId.value = null;
+      planNodeToNodeIdMap.value.clear();
+    } finally {
+      loadingNodes.value = false;
+    }
   }
 });
 </script>

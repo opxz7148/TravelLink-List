@@ -17,18 +17,18 @@
     </div>
 
     <div class="mt-3 flex gap-4 text-sm text-slate-600 flex-col sm:flex-row">
-      <div class="flex items-center gap-1.5">
-        <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z" />
         </svg>
-        <span>{{ plan.destination }}</span>
+        <span class="truncate">{{ plan.destination }}</span>
       </div>
-      <div class="flex items-center gap-1.5">
-        <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
-        <span>{{ plan.author?.username || 'Unknown' }}</span>
+        <span class="truncate" :title="`Created by ${plan.author?.username || 'Unknown'}`">{{ plan.author?.username || 'Unknown' }}</span>
       </div>
     </div>
 
@@ -37,13 +37,13 @@
         <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
-        <span>{{ planRating }} ({{ plan.rating_count }})</span>
+        <span>{{ planRating }} ({{ plan.rating_count || 0 }})</span>
       </div>
       <div class="flex items-center gap-1.5 text-slate-600">
         <svg class="w-4 h-4 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
         </svg>
-        <span>{{ plan.comment_count }} comments</span>
+        <span>{{ (plan.comment_count || 0) }} {{ (plan.comment_count || 0) === 1 ? 'comment' : 'comments' }}</span>
       </div>
     </div>
 
@@ -85,8 +85,19 @@ const emit = defineEmits<{
 }>();
 
 const planRating = computed(() => {
-  if (props.plan.rating_count === 0) return '0';
-  return (props.plan.rating_sum / props.plan.rating_count).toFixed(1);
+  const average = Number(props.plan.rating_average);
+  if (Number.isFinite(average) && average >= 0) {
+    return average.toFixed(1);
+  }
+
+  const ratingSum = Number(props.plan.rating_sum);
+  const ratingCount = Number(props.plan.rating_count);
+
+  if (Number.isFinite(ratingSum) && Number.isFinite(ratingCount) && ratingCount > 0) {
+    return (ratingSum / ratingCount).toFixed(1);
+  }
+
+  return '0.0';
 });
 
 function formatStatus(status: string): string {

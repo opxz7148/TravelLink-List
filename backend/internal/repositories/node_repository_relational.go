@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 
 	"tll-backend/internal/database"
 	"tll-backend/internal/models"
@@ -280,20 +281,53 @@ func (r *RelationalNodeRepository) ListNodesByCreator(ctx context.Context, creat
 	return nodes, nil
 }
 
+// ListDraftNodesByCreator retrieves all nodes created by a user with pagination (both draft and approved)
+// Preloads all detail types for convenient access
+func (r *RelationalNodeRepository) ListDraftNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error) {
+	var nodes []*models.Node
+
+	query := r.getDB().WithContext(ctx).
+		Preload("AttractionNodeDetail").
+		Preload("TransitionNodeDetail").
+		Where("created_by = ?", creatorID).
+		Order("created_at DESC")
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if err := query.Find(&nodes).Error; err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
+}
+
 // ApproveNode approves a node
 func (r *RelationalNodeRepository) ApproveNode(ctx context.Context, nodeID string) error {
+	fmt.Println("[REPO] ApproveNode called for nodeID:", nodeID)
+	
 	result := r.getDB().WithContext(ctx).Model(&models.Node{}).
 		Where("id = ?", nodeID).
 		Update("is_approved", true)
 
+	fmt.Println("[REPO] Update result - Error:", result.Error, "RowsAffected:", result.RowsAffected)
+
 	if result.Error != nil {
+		fmt.Println("[REPO] ❌ ApproveNode error:", result.Error)
 		return result.Error
 	}
 
 	if result.RowsAffected == 0 {
+		fmt.Println("[REPO] ❌ ApproveNode: No rows affected (node not found)")
 		return models.ErrNotFound
 	}
 
+	fmt.Println("[REPO] ✓ ApproveNode success: Updated 1 node")
 	return nil
 }
 
@@ -355,6 +389,17 @@ func (r *RelationalNodeRepository) CountNodesByCreator(ctx context.Context, crea
 	var count int64
 	if err := r.getDB().WithContext(ctx).Model(&models.Node{}).
 		Where("created_by = ?", creatorID).
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountDraftNodesByCreator returns count of unapproved (draft) nodes by creator
+func (r *RelationalNodeRepository) CountDraftNodesByCreator(ctx context.Context, creatorID string) (int64, error) {
+	var count int64
+	if err := r.getDB().WithContext(ctx).Model(&models.Node{}).
+		Where("created_by = ? AND is_approved = ?", creatorID, false).
 		Count(&count).Error; err != nil {
 		return 0, err
 	}

@@ -50,9 +50,9 @@ type Node struct {
 	// User who created this node
 	CreatedBy string `gorm:"type:TEXT;not null;index" json:"created_by"`
 
-	// is_approved (boolean, default: true for system nodes, false for user-created)
+	// is_approved (boolean, default: false for user-created, explicitly true for system nodes)
 	// Whether node is approved by admin (user-created nodes start as false)
-	IsApproved bool `gorm:"type:BOOLEAN;default:true;index" json:"is_approved"`
+	IsApproved bool `gorm:"type:BOOLEAN;default:false;index" json:"is_approved"`
 
 	// created_at (timestamp, UTC, immutable)
 	// When the node was created

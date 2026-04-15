@@ -46,6 +46,7 @@ func (r *RelationalCommentRepository) GetCommentByID(ctx context.Context, commen
 }
 
 // ListCommentsByPlan retrieves all comments for a plan with pagination
+// Includes author information to avoid N+1 queries
 func (r *RelationalCommentRepository) ListCommentsByPlan(ctx context.Context, planID string, offset int, limit int) ([]*models.Comment, int, error) {
 	var comments []*models.Comment
 	var total int64
@@ -67,7 +68,8 @@ func (r *RelationalCommentRepository) ListCommentsByPlan(ctx context.Context, pl
 		query = query.Limit(limit)
 	}
 
-	if err := query.Find(&comments).Error; err != nil {
+	// Preload author to avoid N+1 queries
+	if err := query.Preload("Author").Find(&comments).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list comments: %w", err)
 	}
 

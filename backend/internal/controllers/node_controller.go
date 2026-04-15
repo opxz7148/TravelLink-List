@@ -130,16 +130,16 @@ func (nc *NodeController) GetNodeDetail(c *gin.Context) {
 
 // CreateAttractionNode handles POST /api/v1/nodes/attraction - create attraction node
 // @Summary Create an attraction node
-// @Description Create a new user-generated attraction node. Requires admin approval before public use. Traveller or admin only.
+// @Description Create a new user-generated attraction node. Starts as draft (not visible to others). Becomes public when user publishes a plan or gets promoted. Traveller only (not admin).
 // @Tags nodes
 // @Security Bearer
 // @Accept json
 // @Produce json
 // @Param request body CreateAttractionRequest true "Attraction creation request"
-// @Success 201 {object} map[string]interface{} "Attraction node created (pending approval)"
+// @Success 201 {object} map[string]interface{} "Attraction node created (draft status)"
 // @Failure 400 {object} middleware.SwaggerErrorResponse "Validation error"
 // @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
-// @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller or admin can create nodes"
+// @Failure 403 {object} middleware.SwaggerErrorResponse "Only traveller can create nodes (not admin)"
 // @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
 // @Router /nodes/attraction [post]
 func (nc *NodeController) CreateAttractionNode(c *gin.Context) {
@@ -244,5 +244,61 @@ func (nc *NodeController) CreateTransitionNode(c *gin.Context) {
 	middleware.SuccessResponse(c, http.StatusCreated, gin.H{
 		"node_id": nodeID,
 		"type":    "transition",
+	})
+}
+
+// GetUserDraftNodes handles GET /api/v1/nodes/my-draft - list current user's draft nodes
+// @Summary List current user's draft (unapproved) nodes
+// @Description Get paginated list of draft nodes created by the current user but not yet approved. Used for "My Nodes" tab in node selector. (protected endpoint - requires authentication)
+// @Tags nodes
+// @Security BearerAuth
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(50)
+// @Success 200 {object} map[string]interface{} "Array of user's draft nodes with embedded details and pagination metadata"
+// @Failure 401 {object} middleware.SwaggerErrorResponse "Not authenticated"
+// @Failure 500 {object} middleware.SwaggerErrorResponse "Internal server error"
+// @Router /nodes/my-draft [get]
+func (nc *NodeController) GetUserDraftNodes(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "50")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+
+	offset := (page - 1) * limit
+
+	// Get current user
+	userID, ok := utilities.GetUserIDFromContext(c)
+	if !ok {
+		middleware.AuthErrorResponse(c, "User not authenticated")
+		return
+	}
+
+	// Get user's draft nodes
+	nodes, err := nc.nodeService.ListDraftNodesByCreator(c.Request.Context(), userID, offset, limit)
+	if err != nil {
+		middleware.InternalErrorResponse(c, "Failed to fetch draft nodes")
+		return
+	}
+
+	// Get total count of user's draft nodes
+	total, err := nc.nodeService.CountDraftNodesByCreator(c.Request.Context(), userID)
+	if err != nil {
+		// Log error but don't fail - return what we have
+		c.Error(err)
+		total = int64(len(nodes))
+	}
+
+	middleware.SuccessResponse(c, http.StatusOK, gin.H{
+		"nodes": nodes,
+		"total": total,
 	})
 }

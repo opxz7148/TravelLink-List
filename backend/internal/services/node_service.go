@@ -45,6 +45,11 @@ type NodeService interface {
 	// offset: pagination offset, limit: results per page
 	ListNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error)
 
+	// ListDraftNodesByCreator retrieves all unapproved (draft) nodes created by a specific user with pagination
+	// Used for "My Nodes" tab in node selector
+	// offset: pagination offset, limit: results per page
+	ListDraftNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error)
+
 	// ListNodesByType retrieves all approved nodes of a specific type (attraction or transition) with pagination
 	// offset: pagination offset, limit: results per page
 	ListNodesByType(ctx context.Context, nodeType models.NodeType, offset int, limit int) ([]*models.Node, error)
@@ -72,6 +77,9 @@ type NodeService interface {
 
 	// CountNodesByCreator returns count of nodes created by a user
 	CountNodesByCreator(ctx context.Context, creatorID string) (int64, error)
+
+	// CountDraftNodesByCreator returns count of unapproved (draft) nodes created by a user
+	CountDraftNodesByCreator(ctx context.Context, creatorID string) (int64, error)
 }
 
 // RelationalNodeService implements NodeService with relational database backend
@@ -127,6 +135,7 @@ func (s *RelationalNodeService) CreateAttractionNode(ctx context.Context, create
 	// Create and persist in repository
 	nodeID, err := s.nodeRepo.CreateAttractionAndSave(ctx, node, detail)
 	if err != nil {
+		fmt.Println("err", err)
 		return "", fmt.Errorf("failed to create attraction node: %w", err)
 	}
 
@@ -247,6 +256,20 @@ func (s *RelationalNodeService) ListNodesByCreator(ctx context.Context, creatorI
 	return nodes, nil
 }
 
+// ListDraftNodesByCreator retrieves all unapproved (draft) nodes created by a user with pagination
+func (s *RelationalNodeService) ListDraftNodesByCreator(ctx context.Context, creatorID string, offset int, limit int) ([]*models.Node, error) {
+	if creatorID == "" {
+		return nil, fmt.Errorf("creatorID cannot be empty")
+	}
+
+	nodes, err := s.nodeRepo.ListDraftNodesByCreator(ctx, creatorID, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list draft nodes by creator: %w", err)
+	}
+
+	return nodes, nil
+}
+
 // ListNodesByType retrieves all approved nodes of a specific type with pagination
 func (s *RelationalNodeService) ListNodesByType(ctx context.Context, nodeType models.NodeType, offset int, limit int) ([]*models.Node, error) {
 	// Validate node type
@@ -356,6 +379,20 @@ func (s *RelationalNodeService) CountNodesByCreator(ctx context.Context, creator
 	count, err := s.nodeRepo.CountNodesByCreator(ctx, creatorID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count nodes by creator: %w", err)
+	}
+
+	return count, nil
+}
+
+// CountDraftNodesByCreator returns count of unapproved (draft) nodes created by a user
+func (s *RelationalNodeService) CountDraftNodesByCreator(ctx context.Context, creatorID string) (int64, error) {
+	if creatorID == "" {
+		return 0, fmt.Errorf("creatorID cannot be empty")
+	}
+
+	count, err := s.nodeRepo.CountDraftNodesByCreator(ctx, creatorID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count draft nodes by creator: %w", err)
 	}
 
 	return count, nil

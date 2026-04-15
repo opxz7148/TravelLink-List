@@ -39,13 +39,20 @@ type UpdateCommentRequest struct {
 
 // CommentResponse represents comment data in API response
 type CommentResponse struct {
-	ID               string  `json:"id"`
-	PlanID           string  `json:"plan_id"`
-	AuthorID         string  `json:"author_id"`
-	Text             string  `json:"text"`
-	IsDeletedByAdmin bool    `json:"is_deleted_by_admin"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        *string `json:"updated_at,omitempty"`
+	ID               string      `json:"id"`
+	PlanID           string      `json:"plan_id"`
+	AuthorID         string      `json:"author_id"`
+	Text             string      `json:"text"`
+	IsDeletedByAdmin bool        `json:"is_deleted_by_admin"`
+	CreatedAt        string      `json:"created_at"`
+	UpdatedAt        *string     `json:"updated_at,omitempty"`
+	Author           *AuthorInfo `json:"author,omitempty"`
+}
+
+// AuthorInfo represents basic author information for display
+type AuthorInfo struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
 }
 
 // CreateComment handles POST /api/v1/plans/:id/comments - create comment
@@ -155,6 +162,13 @@ func (cc *CommentController) GetComments(c *gin.Context) {
 	// Convert to response format
 	commentResponses := make([]CommentResponse, len(comments))
 	for i, comment := range comments {
+		var author *AuthorInfo
+		if comment.Author != nil {
+			author = &AuthorInfo{
+				ID:       comment.Author.ID,
+				Username: comment.Author.Username,
+			}
+		}
 		commentResponses[i] = CommentResponse{
 			ID:               comment.ID,
 			PlanID:           comment.PlanID,
@@ -162,6 +176,7 @@ func (cc *CommentController) GetComments(c *gin.Context) {
 			Text:             comment.Text,
 			IsDeletedByAdmin: comment.IsDeletedByAdmin,
 			CreatedAt:        comment.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Author:           author,
 		}
 		if comment.UpdatedAt != nil {
 			updatedAt := comment.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")

@@ -105,8 +105,11 @@ const handleChangePassword = () => {
 
 onMounted(async () => {
   try {
-    const plans = await planService.getUserPlans();
-    userPlans.value = plans;
+    // Refresh current user data to ensure role is up-to-date
+    await authStore.getCurrentUser();
+    
+    const result = await planService.getUserPlans();
+    userPlans.value = result.plans;
   } catch (error) {
     uiStore.showError('Failed to load your plans');
   }

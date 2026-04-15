@@ -1,14 +1,14 @@
 <template>
-  <div class="max-w-6xl mx-auto px-4 py-6">
+  <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <!-- Page Header -->
-    <div class="relative overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 mb-8">
+    <div class="relative overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 mb-12">
       <div class="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-200/50 blur-3xl"></div>
       <h1 class="tl-title text-4xl md:text-5xl font-bold text-slate-900 mb-2">Find Your Next Route</h1>
       <p class="text-slate-600 text-base md:text-lg">Discover hand-crafted itineraries shared by travelers around the world.</p>
     </div>
 
     <!-- Filters Section -->
-    <div class="tl-surface flex flex-col gap-4 mb-8 p-5 md:p-6">
+    <div class="tl-surface flex flex-col gap-4 mx-auto my-12 p-6 md:p-8">
       <div class="relative flex items-center">
         <svg class="absolute left-3 w-5 h-5 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8" />
@@ -35,13 +35,13 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="tl-surface flex flex-col items-center justify-center py-16 gap-4">
+    <div v-if="loading" class="tl-surface flex flex-col items-center justify-center py-20 gap-4 my-8">
       <div class="w-10 h-10 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
       <p class="text-slate-600">Loading plans...</p>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="plans.length === 0" class="tl-surface flex flex-col items-center justify-center py-16 text-slate-600">
+    <div v-else-if="plans.length === 0" class="tl-surface flex flex-col items-center justify-center py-20 text-slate-600 my-8">
       <svg class="w-16 h-16 text-slate-300 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M9 12h6m-6 4h6m2-16H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V2a2 2 0 00-2-2z" />
       </svg>
@@ -50,9 +50,9 @@
     </div>
 
     <!-- Plans Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-12 mt-8">
       <PlanCard
-        v-for="plan in plans"
+        v-for="plan in sortedPlans"
         :key="plan.id"
         :plan="plan"
         @view="viewPlan(plan.id)"
@@ -60,7 +60,7 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="plans.length > 0" class="tl-surface flex flex-col sm:flex-row justify-center items-center gap-3 p-5">
+    <div v-if="plans.length > 0" class="tl-surface flex flex-col sm:flex-row justify-center items-center gap-3 p-6 md:p-8 mt-12">
       <button
         @click="previousPage"
         :disabled="currentPage === 1"
@@ -103,7 +103,28 @@ const searchQuery = ref('');
 const sortBy = ref('recent');
 
 const totalPages = computed(() => {
-  return Math.ceil(totalPlans.value / pageSize.value);
+  return Math.max(1, Math.ceil((Number(totalPlans.value) || 0) / pageSize.value));
+});
+
+const sortedPlans = computed(() => {
+  const sorted = [...plans.value];
+  
+  switch (sortBy.value) {
+    case 'popular':
+      // Sort by comment count (descending)
+      return sorted.sort((a: TravelPlan, b: TravelPlan) => (b.comment_count || 0) - (a.comment_count || 0));
+    case 'rated':
+      // Sort by rating average (descending)
+      return sorted.sort((a: TravelPlan, b: TravelPlan) => {
+        const ratingA = (a.rating_count || 0) > 0 ? (a.rating_sum || 0) / (a.rating_count || 1) : 0;
+        const ratingB = (b.rating_count || 0) > 0 ? (b.rating_sum || 0) / (b.rating_count || 1) : 0;
+        return ratingB - ratingA;
+      });
+    case 'recent':
+    default:
+      // Sort by creation date (descending - newest first)
+      return sorted.sort((a: TravelPlan, b: TravelPlan) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
 });
 
 async function loadPlans(): Promise<void> {
@@ -113,11 +134,10 @@ async function loadPlans(): Promise<void> {
     const result = await planService.listPlans({
       page: currentPage.value,
       limit: pageSize.value,
-      sort: sortBy.value as 'recent' | 'popular' | 'rated',
     });
 
     plans.value = result.plans;
-    totalPlans.value = result.total;
+    totalPlans.value = Number(result.total) || 0;
   } catch (error) {
     console.error('Failed to load plans:', error);
     // TODO: Show error toast notification
@@ -144,7 +164,7 @@ async function search(): Promise<void> {
     });
 
     plans.value = result.plans;
-    totalPlans.value = result.total;
+    totalPlans.value = Number(result.total) || 0;
   } catch (error) {
     console.error('Search failed:', error);
     // TODO: Show error toast notification

@@ -146,26 +146,32 @@ func (mr *MigrationRunner) loadMigrations() error {
 }
 
 // applyMigration executes a single migration and records it in schema_migrations
+// Uses a database transaction to ensure atomicity: both SQL and record must succeed or both fail
 func (mr *MigrationRunner) applyMigration(migration *Migration) error {
-	// Execute the migration SQL
-	if err := mr.db.Exec(migration.SQL).Error; err != nil {
-		return fmt.Errorf("SQL error: %w", err)
-	}
+	// Use GORM's Transaction mechanism for atomicity
+	err := mr.db.Transaction(func(tx *gorm.DB) error {
+		// Execute the migration SQL within transaction
+		if err := tx.Exec(migration.SQL).Error; err != nil {
+			return fmt.Errorf("SQL error: %w", err)
+		}
 
-	// Record migration as applied
-	now := time.Now().UTC()
-	migration.AppliedAt = &now
+		// Record migration as applied within same transaction
+		now := time.Now().UTC()
+		migration.AppliedAt = &now
 
-	if err := mr.db.Exec(
-		"INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
-		migration.Version,
-		migration.Name,
-		now,
-	).Error; err != nil {
-		return fmt.Errorf("failed to record migration: %w", err)
-	}
+		if err := tx.Exec(
+			"INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+			migration.Version,
+			migration.Name,
+			now,
+		).Error; err != nil {
+			return fmt.Errorf("failed to record migration: %w", err)
+		}
 
-	return nil
+		return nil
+	})
+
+	return err
 }
 
 // getAppliedMigrations returns a list of migration versions that have been applied

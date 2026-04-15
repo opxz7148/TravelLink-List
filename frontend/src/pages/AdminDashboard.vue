@@ -1,83 +1,80 @@
 <template>
-  <div class="min-h-screen bg-gray-50 px-4 py-8">
+  <div class="min-h-screen bg-gray-50 px-4 py-12">
     <!-- Dashboard Header -->
-    <div class="max-w-7xl mx-auto mb-8">
+    <div class="w-full max-w-400 mx-auto mb-12">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
       <p class="text-gray-600">Manage content, users, and platform moderation</p>
     </div>
 
     <!-- Dashboard Grid -->
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Flagged Plans Section -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-1 pb-3 border-b-2 border-gray-100">Flagged Plans</h2>
-        <p class="text-gray-600 text-sm mb-4">Review and moderate flagged travel plans</p>
-        <button @click="loadFlaggedPlans" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-all">
-          Load Flagged Plans
-        </button>
-        <div v-if="flaggedPlans.length > 0" class="mt-4 space-y-3">
-          <div v-for="plan in flaggedPlans" :key="plan.id" class="border border-gray-200 p-3 rounded-md bg-gray-50">
-            <h3 class="font-bold text-gray-900 mb-1">{{ plan.title }}</h3>
-            <p class="text-sm text-gray-600 mb-3">Author: {{ plan.author?.username }}</p>
-            <div class="flex gap-2">
-              <button @click="approvePlan(plan.id)" class="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-all">
-                Approve
-              </button>
-              <button @click="rejectPlan(plan.id)" class="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-        <div v-else class="mt-4 text-center py-6 text-gray-600">
-          <p>No flagged plans at the moment</p>
-        </div>
-      </div>
-
-      <!-- Pending Nodes Section -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-1 pb-3 border-b-2 border-gray-100">Pending Node Approvals</h2>
-        <p class="text-gray-600 text-sm mb-4">Review and approve user-created nodes</p>
-        <button @click="loadPendingNodes" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-all">
-          Load Pending Nodes
-        </button>
-        <div v-if="pendingNodes.length > 0" class="mt-4 space-y-3">
-          <div v-for="node in pendingNodes" :key="node.id" class="border border-gray-200 p-3 rounded-md bg-gray-50">
-            <h3 class="font-bold text-gray-900 mb-1">{{ node.details?.name || 'Node' }}</h3>
-            <p class="text-sm text-gray-600 mb-3">Type: {{ node.type }}</p>
-            <div class="flex gap-2">
-              <button @click="approveNode(node.id)" class="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-all">
-                Approve
-              </button>
-              <button @click="rejectNode(node.id)" class="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-        <div v-else class="mt-4 text-center py-6 text-gray-600">
-          <p>No pending nodes to review</p>
-        </div>
-      </div>
-
+    <div class="w-full max-w-400 mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Promotion Requests Section -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <h2 class="text-xl font-bold text-gray-900 mb-1 pb-3 border-b-2 border-gray-100">Promotion Requests</h2>
-        <p class="text-gray-600 text-sm mb-4">Review user promotion requests</p>
-        <button @click="loadPromotionRequests" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-all">
-          Load Requests
+        <p class="text-gray-600 text-sm mb-4">Review user promotion requests to traveller status</p>
+        <button 
+          @click="loadPromotionRequests" 
+          :disabled="isLoadingPromotions"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50"
+        >
+          {{ isLoadingPromotions ? 'Loading...' : 'Refresh Requests' }}
         </button>
         <div v-if="promotionRequests.length > 0" class="mt-4 space-y-3">
-          <div v-for="request in promotionRequests" :key="request.id" class="border border-gray-200 p-3 rounded-md bg-gray-50">
-            <h3 class="font-bold text-gray-900 mb-1">{{ request.user?.username }}</h3>
-            <p v-if="request.plan" class="text-sm text-gray-600 mb-1">Plan: {{ request.plan.title }}</p>
-            <p class="text-sm font-semibold text-blue-600 mb-3">Status: {{ request.status }}</p>
-            <div v-if="request.status === 'pending'" class="flex gap-2">
-              <button @click="approvePromotion(request.id)" class="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-all">
-                Approve
+          <div v-for="request in promotionRequests" :key="request.id" class="border border-gray-200 p-4 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div class="flex justify-between items-start gap-4">
+              <div class="flex-1">
+                <h3 class="font-bold text-gray-900 mb-1">
+                  <router-link 
+                    :to="`/profile/${request.user?.username}`"
+                    class="text-blue-600 hover:underline"
+                  >
+                    {{ request.user?.username || 'Unknown User' }}
+                  </router-link>
+                </h3>
+                <p v-if="request.user?.email" class="text-sm text-gray-600 mb-1">
+                  {{ request.user.email }}
+                </p>
+                <p v-if="request.user?.role" class="text-sm text-gray-600 mb-2">
+                  Current Role: <span class="font-semibold capitalize">{{ request.user.role }}</span>
+                </p>
+                <p v-if="request.plan" class="text-sm text-gray-700 mb-2">
+                  <strong>Referenced Plan:</strong>
+                  <router-link 
+                    :to="`/plans/${request.plan.id}`"
+                    class="text-blue-600 hover:underline font-medium"
+                  >
+                    {{ request.plan.title }}
+                  </router-link>
+                </p>
+                <p class="text-sm text-gray-600">
+                  Submitted: {{ new Date(request.created_at).toLocaleDateString() }}
+                </p>
+              </div>
+              <div class="text-right">
+                <span 
+                  class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                  :class="{
+                    'bg-yellow-100 text-yellow-800': request.status === 'pending',
+                    'bg-green-100 text-green-800': request.status === 'approved',
+                    'bg-red-100 text-red-800': request.status === 'rejected'
+                  }"
+                >
+                  {{ request.status.toUpperCase() }}
+                </span>
+              </div>
+            </div>
+            <div v-if="request.status === 'pending'" class="mt-4 flex gap-2">
+              <button 
+                @click="openPromotionReview(request)"
+                class="flex-1 px-3 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-all"
+              >
+                Review & Approve
               </button>
-              <button @click="rejectPromotion(request.id)" class="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
-                Reject
+              <button 
+                @click="openPromotionReview(request)"
+                class="flex-1 px-3 py-2 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-all"
+              >
+                Review & Reject
               </button>
             </div>
           </div>
@@ -86,59 +83,135 @@
           <p>No pending promotion requests</p>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- Statistics Section -->
-      <div class="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
-        <h2 class="text-xl font-bold text-gray-900 mb-4 pb-3 border-b-2 border-gray-100">Platform Statistics</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4 rounded-lg">
-            <p class="text-sm text-indigo-100 mb-1">Total Users</p>
-            <p class="text-3xl font-bold">{{ stats.totalUsers }}</p>
-          </div>
-          <div class="bg-gradient-to-br from-blue-500 to-cyan-600 text-white p-4 rounded-lg">
-            <p class="text-sm text-blue-100 mb-1">Total Plans</p>
-            <p class="text-3xl font-bold">{{ stats.totalPlans }}</p>
-          </div>
-          <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white p-4 rounded-lg">
-            <p class="text-sm text-orange-100 mb-1">Pending Approvals</p>
-            <p class="text-3xl font-bold">{{ stats.pendingApprovals }}</p>
-          </div>
-          <div class="bg-gradient-to-br from-rose-500 to-pink-600 text-white p-4 rounded-lg">
-            <p class="text-sm text-rose-100 mb-1">Flagged Content</p>
-            <p class="text-3xl font-bold">{{ stats.flaggedContent }}</p>
+  <!-- Promotion Review Modal -->
+  <div v-if="selectedRequestForReview" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="border-b border-gray-200 p-6">
+        <h2 class="text-2xl font-bold text-gray-900">Review Promotion Request</h2>
+        <p class="text-gray-600 text-sm mt-1">Admin review and decision</p>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-6">
+        <!-- User Information -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">User Information</h3>
+          <div class="bg-gray-50 p-4 rounded-md space-y-2">
+            <div>
+              <p class="text-sm text-gray-600">Username</p>
+              <p class="font-semibold text-gray-900">{{ selectedRequestForReview.user?.username }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Email</p>
+              <p class="font-semibold text-gray-900">{{ selectedRequestForReview.user?.email }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Current Role</p>
+              <p class="font-semibold text-gray-900 capitalize">{{ selectedRequestForReview.user?.role }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Request Date</p>
+              <p class="font-semibold text-gray-900">{{ new Date(selectedRequestForReview.created_at).toLocaleString() }}</p>
+            </div>
           </div>
         </div>
+
+        <!-- Referenced Plan (if any) -->
+        <div v-if="selectedRequestForReview.plan">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Referenced Travel Plan</h3>
+          <div class="bg-gray-50 p-4 rounded-md space-y-2">
+            <div>
+              <p class="text-sm text-gray-600">Plan Title</p>
+              <p class="font-semibold text-gray-900">{{ selectedRequestForReview.plan.title }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Destination</p>
+              <p class="font-semibold text-gray-900">{{ selectedRequestForReview.plan.destination }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Status</p>
+              <p class="font-semibold text-gray-900 capitalize">{{ selectedRequestForReview.plan.status }}</p>
+            </div>
+            <div v-if="formatRating(selectedRequestForReview.plan) !== '0.0'">
+              <p class="text-sm text-gray-600">Rating</p>
+              <p class="font-semibold text-gray-900">
+                {{ formatRating(selectedRequestForReview.plan) }} / 5 
+                ({{ selectedRequestForReview.plan.rating_count || 0 }} ratings)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Notes -->
+        <div>
+          <label for="review-notes" class="block text-sm font-semibold text-gray-900 mb-2">
+            Admin Notes (Optional)
+          </label>
+          <textarea
+            id="review-notes"
+            v-model="reviewNotes"
+            placeholder="Add notes about this promotion decision..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows="4"
+            maxlength="500"
+          ></textarea>
+          <p class="text-xs text-gray-500 mt-1">{{ reviewNotes.length }}/500 characters</p>
+        </div>
+
+        <!-- Promotion Outcome -->
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-md">
+          <p class="text-sm font-semibold text-blue-900 mb-2">If Approved:</p>
+          <ul class="text-sm text-blue-800 space-y-1 ml-4 list-disc">
+            <li>User role will be upgraded to <strong>traveller</strong></li>
+            <li>User will receive a notification of approval</li>
+            <li>User can now create and publish travel plans</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="border-t border-gray-200 p-6 flex gap-3 justify-end">
+        <button
+          @click="closePromotionReview"
+          class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          @click="rejectPromotion(selectedRequestForReview.id)"
+          class="px-4 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-all"
+        >
+          Reject Request
+        </button>
+        <button
+          @click="approvePromotion(selectedRequestForReview.id)"
+          class="px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-all"
+        >
+          Approve & Promote
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useUiStore } from '../stores/ui_store';
-import { type TravelPlan } from '../services/plan_service';
+import { useAuthStore } from '../stores/auth_store';
+import { promotionService, type PromotionRequest } from '../services/promotion_service';
 
 const uiStore = useUiStore();
+const authStore = useAuthStore();
 
-const flaggedPlans = ref<TravelPlan[]>([]);
 const pendingNodes = ref<any[]>([]);
-const promotionRequests = ref<any[]>([]);
-
-const stats = ref({
-  totalUsers: 0,
-  totalPlans: 0,
-  pendingApprovals: 0,
-  flaggedContent: 0,
-});
-
-const loadFlaggedPlans = async () => {
-  try {
-    // TODO: Implement API call to fetch flagged plans
-    uiStore.showInfo('Feature coming soon');
-  } catch (error) {
-    uiStore.showError('Failed to load flagged plans');
-  }
-};
+const promotionRequests = ref<PromotionRequest[]>([]);
+const isLoadingPromotions = ref(false);
+const selectedRequestForReview = ref<PromotionRequest | null>(null);
+const reviewNotes = ref('');
 
 const loadPendingNodes = async () => {
   try {
@@ -151,21 +224,16 @@ const loadPendingNodes = async () => {
 
 const loadPromotionRequests = async () => {
   try {
-    // TODO: Implement API call to fetch promotion requests
-    uiStore.showInfo('Feature coming soon');
-  } catch (error) {
+    isLoadingPromotions.value = true;
+    const response = await promotionService.getPendingRequests(1);
+    promotionRequests.value = response.requests;
+    uiStore.showSuccess(`Loaded ${response.requests.length} pending requests`);
+  } catch (error: any) {
     uiStore.showError('Failed to load promotion requests');
+    console.error('Error loading promotion requests:', error);
+  } finally {
+    isLoadingPromotions.value = false;
   }
-};
-
-const approvePlan = async (planId: string) => {
-  // TODO: Implement approve logic
-  uiStore.showSuccess('Plan approved');
-};
-
-const rejectPlan = async (planId: string) => {
-  // TODO: Implement reject logic
-  uiStore.showSuccess('Plan rejected');
 };
 
 const approveNode = async (nodeId: string) => {
@@ -178,13 +246,63 @@ const rejectNode = async (nodeId: string) => {
   uiStore.showSuccess('Node rejected');
 };
 
+const openPromotionReview = (request: PromotionRequest) => {
+  selectedRequestForReview.value = request;
+  reviewNotes.value = '';
+};
+
+const closePromotionReview = () => {
+  selectedRequestForReview.value = null;
+  reviewNotes.value = '';
+};
+
+const formatRating = (plan: { rating_average?: number; rating_sum?: number; rating_count?: number }) => {
+  const average = Number(plan.rating_average);
+  if (Number.isFinite(average) && average >= 0) {
+    return average.toFixed(1);
+  }
+
+  const ratingSum = Number(plan.rating_sum);
+  const ratingCount = Number(plan.rating_count);
+
+  if (Number.isFinite(ratingSum) && Number.isFinite(ratingCount) && ratingCount > 0) {
+    return (ratingSum / ratingCount).toFixed(1);
+  }
+
+  return '0.0';
+};
+
 const approvePromotion = async (requestId: string) => {
-  // TODO: Implement approve logic
-  uiStore.showSuccess('Promotion approved');
+  try {
+    await promotionService.approvePromotion(requestId, reviewNotes.value);
+    // Reload the list
+    await loadPromotionRequests();
+    // Refresh current user data to update role if they're logged in and were promoted
+    if (authStore.isAuthenticated) {
+      await authStore.getCurrentUser();
+    }
+    uiStore.showSuccess('Promotion request approved successfully');
+    closePromotionReview();
+  } catch (error: any) {
+    uiStore.showError('Failed to approve promotion request');
+    console.error('Error approving promotion:', error);
+  }
 };
 
 const rejectPromotion = async (requestId: string) => {
-  // TODO: Implement reject logic
-  uiStore.showSuccess('Promotion rejected');
+  try {
+    await promotionService.rejectPromotion(requestId, reviewNotes.value);
+    // Reload the list
+    await loadPromotionRequests();
+    uiStore.showSuccess('Promotion request rejected');
+    closePromotionReview();
+  } catch (error: any) {
+    uiStore.showError('Failed to reject promotion request');
+    console.error('Error rejecting promotion:', error);
+  }
 };
+
+onMounted(async () => {
+  await loadPromotionRequests();
+});
 </script>

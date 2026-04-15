@@ -11,7 +11,17 @@
         {{ node.type === 'attraction' ? '🏛️' : '🛣️' }}
         {{ node.type === 'attraction' ? 'Attraction' : 'Transition' }}
       </span>
-      <span v-if="showSequence" class="inline-flex items-center justify-center w-7 h-7 bg-blue-600 text-white rounded-full font-bold text-sm">{{ sequence }}</span>
+      <div class="flex items-center gap-2">
+        <span v-if="showStatus" :class="[
+          'inline-flex items-center px-2 py-1 rounded text-xs font-semibold',
+          node.is_approved
+            ? 'bg-green-100 text-green-700'
+            : 'bg-orange-100 text-orange-700'
+        ]">
+          {{ node.is_approved ? '✓ Published' : '○ Draft' }}
+        </span>
+        <span v-if="showSequence" class="inline-flex items-center justify-center w-7 h-7 bg-blue-600 text-white rounded-full font-bold text-sm">{{ sequence }}</span>
+      </div>
     </div>
 
     <div class="flex flex-col gap-2">
@@ -85,6 +95,7 @@ interface Props {
   sequence?: number;
   showSequence?: boolean;
   showActions?: boolean;
+  showStatus?: boolean;
 }
 
 interface Emits {
@@ -97,6 +108,7 @@ withDefaults(defineProps<Props>(), {
   sequence: 0,
   showSequence: false,
   showActions: true,
+  showStatus: false,
 });
 
 defineEmits<Emits>();
